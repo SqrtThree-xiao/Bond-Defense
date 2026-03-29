@@ -53,6 +53,7 @@ public partial class GameManager : Node
         _battlefield.EnemyReachedEnd += OnEnemyReachedEnd;
         _battlefield.EnemyKilled += OnEnemyKilled;
         _battlefield.HeroPlaced += OnHeroPlaced;
+        _battlefield.DragReturnedToBench += OnDragReturnedToBench;
 
         _synergyManager.SynergiesUpdated += OnSynergiesUpdated;
 
@@ -212,6 +213,8 @@ public partial class GameManager : Node
             _heroStorage = new Node();
             _heroStorage.Name = "HeroStorage";
             GetParent().AddChild(_heroStorage);
+            // 让 Battlefield 知道 HeroStorage 的位置，用于归还拖拽失败的英雄
+            _battlefield.HeroStorage = _heroStorage;
         }
         _heroStorage.AddChild(hero);
         return hero;
@@ -413,7 +416,18 @@ public partial class GameManager : Node
 
     private void OnHeroPlaced(Hero hero, int col, int row)
     {
+        // 如果英雄在待部署区中，从 bench 移除
+        if (_bench.Remove(hero))
+        {
+            EmitSignal(SignalName.BenchChanged);
+        }
         UpdateSynergies();
+    }
+
+    private void OnDragReturnedToBench()
+    {
+        // 从 bench 拖出但放置失败，bench 列表未改变，只需刷新 UI
+        EmitSignal(SignalName.BenchChanged);
     }
 
     private void OnSynergiesUpdated()

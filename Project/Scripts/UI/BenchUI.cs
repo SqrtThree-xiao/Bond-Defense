@@ -123,5 +123,8 @@ public partial class BenchUI : Control
     {
         _draggingHero = hero;
         _battlefield.StartDragFromBench(hero);
+        // 隐藏原位置卡牌，拖拽结束后 RefreshDisplay 会重建
+        foreach (var child in _benchContainer.GetChildren())
+            child.QueueFree();
     }
 }

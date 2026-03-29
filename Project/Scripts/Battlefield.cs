@@ -263,11 +263,22 @@ public partial class Battlefield : Node2D
 
     // ─────────────────────── 鼠标交互（拖拽）───────────────────────
 
+    [Signal]
+    public delegate void DragReturnedToBenchEventHandler();
+
+    // HeroStorage 引用（由 GameManager 设置）
+    public Node HeroStorage { get; set; }
+
     public void StartDragFromBench(Hero hero)
     {
         _draggingHero = hero;
         _isDraggingFromBench = true;
         _dragOriginalCell = new Vector2I(-1, -1);
+
+        // 将英雄从 HeroStorage 移入战场，使其可见并可跟随鼠标
+        hero.GetParent()?.RemoveChild(hero);
+        AddChild(hero);
+        hero.ZIndex = 10; // 拖拽时置顶
     }
 
     public void StartDragFromGrid(int col, int row)
@@ -312,24 +323,15 @@ public partial class Battlefield : Node2D
             if (_grid[dropCell.X, dropCell.Y] == null)
             {
                 // 放置到空格
-                if (_isDraggingFromBench)
-                {
-                    // 从待部署区放置
-                    PlaceHero(_draggingHero, dropCell.X, dropCell.Y);
-                }
-                else
-                {
-                    // 从战场移动到新位置
-                    _grid[dropCell.X, dropCell.Y] = _draggingHero;
-                    _draggingHero.GlobalPosition = GridToWorld(dropCell.X, dropCell.Y);
-                    HighlightCell(dropCell.X, dropCell.Y, false);
-                }
+                _grid[dropCell.X, dropCell.Y] = _draggingHero;
+                _draggingHero.GlobalPosition = GridToWorld(dropCell.X, dropCell.Y);
+                HighlightCell(dropCell.X, dropCell.Y, false);
                 placed = true;
                 EmitSignal(SignalName.HeroPlaced, _draggingHero, dropCell.X, dropCell.Y);
             }
             else if (!_isDraggingFromBench && _dragOriginalCell.X >= 0)
             {
-                // 与目标格子交换
+                // 与目标格子交换（仅战场内部拖拽）
                 var other = _grid[dropCell.X, dropCell.Y];
                 _grid[dropCell.X, dropCell.Y] = _draggingHero;
                 _grid[_dragOriginalCell.X, _dragOriginalCell.Y] = other;
@@ -339,19 +341,44 @@ public partial class Battlefield : Node2D
             }
         }
 
-        if (!placed && !_isDraggingFromBench && _dragOriginalCell.X >= 0)
+        if (!placed)
         {
-            // 放回原位
-            _grid[_dragOriginalCell.X, _dragOriginalCell.Y] = _draggingHero;
-            _draggingHero.GlobalPosition = _dragOriginalPos;
-        }
-        else if (!placed && _isDraggingFromBench)
-        {
-            // 放回待部署区（发射信号，由GameManager处理）
+            if (_isDraggingFromBench)
+            {
+                // 从待部署区拖来但放置失败 → 归还 HeroStorage 并通知刷新 bench UI
+                ReturnToBench();
+                _draggingHero = null;
+                _isDraggingFromBench = false;
+                return;
+            }
+            else if (_dragOriginalCell.X >= 0)
+            {
+                // 战场内部拖拽但放置失败 → 放回原位
+                _grid[_dragOriginalCell.X, _dragOriginalCell.Y] = _draggingHero;
+                _draggingHero.GlobalPosition = _dragOriginalPos;
+            }
         }
 
+        if (_draggingHero != null)
+            _draggingHero.ZIndex = 0;
         _draggingHero = null;
         _isDraggingFromBench = false;
+    }
+
+    /// <summary>
+    /// 将拖拽失败的英雄归还到 HeroStorage（bench 列表不变，英雄节点回到有效父节点）
+    /// </summary>
+    private void ReturnToBench()
+    {
+        if (_draggingHero == null) return;
+        _draggingHero.ZIndex = 0;
+        _draggingHero.Position = Vector2.Zero; // 重置位置，避免停留在拖拽处
+        // 从战场移除，放回 HeroStorage 保持节点在场景树中
+        RemoveChild(_draggingHero);
+        if (HeroStorage != null)
+            HeroStorage.AddChild(_draggingHero);
+        // 通知 BenchUI 刷新显示（bench 列表未改变，但 UI 需要重建）
+        EmitSignal(SignalName.DragReturnedToBench);
     }
 
     // ─────────────────────── 敌人生成 ───────────────────────

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 商店UI - 展示商店英雄卡片，处理购买、刷新、锁定
-/// 支持自适应宽度
+/// 卡牌通过预制场景加载，代码只负责数据绑定
 /// </summary>
 public partial class ShopUI : Control
 {
@@ -11,6 +11,14 @@ public partial class ShopUI : Control
     private HBoxContainer _slotsContainer;
     private Button _refreshBtn;
     private Button _lockBtn;
+
+    /// <summary>英雄卡牌预制场景路径</summary>
+    private const string HERO_CARD_SCENE = "res://Scenes/UI/HeroCard.tscn";
+    /// <summary>空槽位预制场景路径</summary>
+    private const string EMPTY_CARD_SCENE = "res://Scenes/UI/EmptyCard.tscn";
+
+    private PackedScene _heroCardScene;
+    private PackedScene _emptyCardScene;
 
     [Signal]
     public delegate void HeroBoughtEventHandler(int slotIndex);
@@ -20,6 +28,10 @@ public partial class ShopUI : Control
         _gameManager = GetTree().Root.GetNode<Main>("Main").GetNode<GameManager>("GameManager");
         _gameManager.ShopRefreshed += RefreshDisplay;
         _gameManager.StateChanged += OnStateChanged;
+
+        // 预加载卡牌预制场景
+        _heroCardScene = GD.Load<PackedScene>(HERO_CARD_SCENE);
+        _emptyCardScene = GD.Load<PackedScene>(EMPTY_CARD_SCENE);
 
         // 从预制场景获取子节点
         _slotsContainer = GetNode<HBoxContainer>("SlotsContainer");
@@ -77,8 +89,47 @@ public partial class ShopUI : Control
         _lockBtn.Text = _gameManager.IsShopLocked ? "🔒 已锁定" : "🔓 锁定";
     }
 
+    /// <summary>
+    /// 从预制场景实例化英雄卡牌并绑定数据
+    /// 注意：必须先 AddChild 再 SetData，否则 HeroCard._Ready 未执行导致子节点引用为 null
+    /// </summary>
+    private HeroCard CreateHeroCard(HeroData data, int index)
+    {
+        var card = _heroCardScene.Instantiate<HeroCard>();
+        int capturedIndex = index;
+        card.Pressed += () =>
+        {
+            if (_gameManager.CurrentState != GameManager.GameState.Prepare) return;
+            if (_gameManager.Bench.Count >= 8 || _gameManager.Gold < data.Price)
+            {
+                // 前置校验失败：卡牌抖动 + 调用 BuyHero 触发 ShowMessage Toast
+                ShakeCard(card);
+                _gameManager.BuyHero(capturedIndex);
+                return;
+            }
+            _gameManager.BuyHero(capturedIndex);
+        };
+        return card;
+    }
+
+    /// <summary>
+    /// 卡牌抖动反馈（购买失败时）
+    /// </summary>
+    private void ShakeCard(Control card)
+    {
+        if (card == null || !IsInstanceValid(card)) return;
+        var tween = CreateTween();
+        float origX = card.Position.X;
+        tween.TweenProperty(card, "position:x", origX - 4, 0.05);
+        tween.TweenProperty(card, "position:x", origX + 4, 0.05);
+        tween.TweenProperty(card, "position:x", origX - 3, 0.05);
+        tween.TweenProperty(card, "position:x", origX + 3, 0.05);
+        tween.TweenProperty(card, "position:x", origX, 0.05);
+    }
+
     public void RefreshDisplay()
     {
+        // 清空旧卡牌
         foreach (var child in _slotsContainer.GetChildren())
             child.QueueFree();
 
@@ -86,99 +137,25 @@ public partial class ShopUI : Control
         for (int i = 0; i < 5; i++)
         {
             if (i < slots.Count)
-                _slotsContainer.AddChild(CreateHeroCard(slots[i], i));
+            {
+                var heroCard = CreateHeroCard(slots[i], i);
+                _slotsContainer.AddChild(heroCard);
+                // AddChild 后 _Ready 已执行，子节点引用已初始化，可以安全绑定数据
+                heroCard.SetData(slots[i], i);
+            }
             else
+            {
                 _slotsContainer.AddChild(CreateEmptyCard());
+            }
         }
     }
 
-    private Control CreateHeroCard(HeroData data, int index)
-    {
-        var card = new Button();
-        card.CustomMinimumSize = new Vector2(104, 78);
-        card.FocusMode = Control.FocusModeEnum.None;
-
-        var style = new StyleBoxFlat();
-        style.BgColor = new Color(0.15f, 0.2f, 0.35f);
-        style.BorderColor = data.HeroColor;
-        style.BorderWidthBottom = 2;
-        style.BorderWidthTop = 2;
-        style.BorderWidthLeft = 2;
-        style.BorderWidthRight = 2;
-        style.CornerRadiusTopLeft = 5;
-        style.CornerRadiusTopRight = 5;
-        style.CornerRadiusBottomLeft = 5;
-        style.CornerRadiusBottomRight = 5;
-        card.AddThemeStyleboxOverride("normal", style);
-
-        var hoverStyle = style.Duplicate() as StyleBoxFlat;
-        hoverStyle.BgColor = new Color(0.25f, 0.35f, 0.55f);
-        card.AddThemeStyleboxOverride("hover", hoverStyle);
-
-        // 英雄颜色图标
-        var icon = new ColorRect();
-        icon.Color = data.HeroColor;
-        icon.Size = new Vector2(32, 32);
-        icon.Position = new Vector2(36, 8);
-        card.AddChild(icon);
-
-        // 稀有度星星
-        var rarityLabel = new Label();
-        rarityLabel.Text = new string('★', data.Rarity);
-        rarityLabel.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.2f));
-        rarityLabel.AddThemeFontSizeOverride("font_size", 9);
-        rarityLabel.Position = new Vector2(2, 3);
-        card.AddChild(rarityLabel);
-
-        // 英雄名称
-        var nameLabel = new Label();
-        nameLabel.Text = data.HeroName;
-        nameLabel.AddThemeColorOverride("font_color", Colors.White);
-        nameLabel.AddThemeFontSizeOverride("font_size", 11);
-        nameLabel.Position = new Vector2(0, 42);
-        nameLabel.Size = new Vector2(104, 16);
-        nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        card.AddChild(nameLabel);
-
-        // 标签
-        var tagLabel = new Label();
-        tagLabel.Text = string.Join(" ", data.Tags);
-        tagLabel.AddThemeFontSizeOverride("font_size", 9);
-        tagLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.9f, 0.7f));
-        tagLabel.Position = new Vector2(0, 57);
-        tagLabel.Size = new Vector2(104, 14);
-        tagLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        card.AddChild(tagLabel);
-
-        // 价格
-        var priceLabel = new Label();
-        priceLabel.Text = $"💰{data.Price}";
-        priceLabel.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
-        priceLabel.AddThemeFontSizeOverride("font_size", 11);
-        priceLabel.Position = new Vector2(74, 3);
-        priceLabel.Size = new Vector2(30, 16);
-        priceLabel.HorizontalAlignment = HorizontalAlignment.Right;
-        card.AddChild(priceLabel);
-
-        // Tooltip
-        card.TooltipText = $"{data.HeroName}\n{string.Join(", ", data.Tags)}\n技能: {data.SkillName} - {data.SkillDescription}\n攻击: {data.BaseAttack}  攻速: {data.BaseAttackSpeed}  范围: {data.BaseRange}";
-
-        int capturedIndex = index;
-        card.Pressed += () =>
-        {
-            if (_gameManager.CurrentState == GameManager.GameState.Prepare)
-                _gameManager.BuyHero(capturedIndex);
-        };
-
-        return card;
-    }
-
+    /// <summary>
+    /// 从预制场景实例化空槽位
+    /// </summary>
     private Control CreateEmptyCard()
     {
-        var card = new ColorRect();
-        card.CustomMinimumSize = new Vector2(104, 78);
-        card.Color = new Color(0.1f, 0.15f, 0.25f, 0.5f);
-        return card;
+        return _emptyCardScene.Instantiate<ColorRect>();
     }
 
     private void OnStateChanged(int state)
