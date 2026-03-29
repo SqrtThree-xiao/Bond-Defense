@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 顶部状态栏UI - 显示金币、波次、生命值
+/// 支持自适应宽度
 /// </summary>
 public partial class TopBarUI : Control
 {
@@ -12,9 +13,17 @@ public partial class TopBarUI : Control
     private Label _waveLabel;
     private Button _startBtn;
     private Label _stateLabel;
+    private ColorRect _bgRect;
+    private ColorRect _sepRect;
+    private Label _goldIcon;
+
+    // 内部元素相对布局用的标记
+    private bool _layoutDirty = true;
 
     public override void _Ready()
     {
+        Resized += () => _layoutDirty = true;
+
         _gameManager = GetTree().Root.GetNode<Main>("Main").GetNode<GameManager>("GameManager");
         _gameManager.GoldChanged += (g) => { if (_goldLabel != null) _goldLabel.Text = $"💰 {g}"; };
         _gameManager.LifeChanged += (l) => { if (_lifeLabel != null) UpdateLife(l); };
@@ -27,53 +36,66 @@ public partial class TopBarUI : Control
         BuildUI();
     }
 
+    public override void _Process(double delta)
+    {
+        // 响应尺寸变化
+        if (_layoutDirty)
+        {
+            Relayout();
+            _layoutDirty = false;
+        }
+
+        // Toast 计时
+        if (_toastTimer > 0 && _toastLabel != null)
+        {
+            _toastTimer -= (float)delta;
+            if (_toastTimer <= 0.5f)
+            {
+                float alpha = _toastTimer / 0.5f;
+                _toastLabel.Modulate = new Color(1, 1, 1, alpha);
+            }
+        }
+    }
+
     private void BuildUI()
     {
         // 背景
-        var bg = new ColorRect();
-        bg.Color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
-        bg.Size = new Vector2(900, 48);
-        AddChild(bg);
+        _bgRect = new ColorRect();
+        _bgRect.Color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
+        AddChild(_bgRect);
 
         // 分隔线
-        var sep = new ColorRect();
-        sep.Color = new Color(0.3f, 0.4f, 0.6f, 0.5f);
-        sep.Size = new Vector2(900, 1);
-        sep.Position = new Vector2(0, 47);
-        AddChild(sep);
+        _sepRect = new ColorRect();
+        _sepRect.Color = new Color(0.3f, 0.4f, 0.6f, 0.5f);
+        _sepRect.Size = new Vector2(1, 1);
+        AddChild(_sepRect);
 
-        // 金币
-        var goldIcon = new Label();
-        goldIcon.Text = "💰";
-        goldIcon.AddThemeFontSizeOverride("font_size", 20);
-        goldIcon.Position = new Vector2(14, 10);
-        AddChild(goldIcon);
+        // 金币图标
+        _goldIcon = new Label();
+        _goldIcon.Text = "💰";
+        _goldIcon.AddThemeFontSizeOverride("font_size", 20);
+        AddChild(_goldIcon);
 
+        // 金币数值
         _goldLabel = new Label();
         _goldLabel.Text = $"💰 {_gameManager.Gold}";
         _goldLabel.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.3f));
         _goldLabel.AddThemeFontSizeOverride("font_size", 18);
-        _goldLabel.Position = new Vector2(10, 10);
-        _goldLabel.Size = new Vector2(100, 28);
         AddChild(_goldLabel);
 
-        // 波次
+        // 波次（居中）
         _waveLabel = new Label();
         _waveLabel.Text = $"波次 {_gameManager.Wave}/{_gameManager.MaxWave}";
         _waveLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.9f, 1f));
         _waveLabel.AddThemeFontSizeOverride("font_size", 16);
-        _waveLabel.Position = new Vector2(390, 12);
         _waveLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        _waveLabel.Size = new Vector2(120, 24);
         AddChild(_waveLabel);
 
-        // 生命值
+        // 生命值（右侧）
         _lifeLabel = new Label();
         _lifeLabel.Text = $"❤ {_gameManager.Life}";
         _lifeLabel.AddThemeColorOverride("font_color", new Color(1f, 0.3f, 0.4f));
         _lifeLabel.AddThemeFontSizeOverride("font_size", 18);
-        _lifeLabel.Position = new Vector2(800, 10);
-        _lifeLabel.Size = new Vector2(80, 28);
         AddChild(_lifeLabel);
 
         // 开始战斗按钮
@@ -82,7 +104,6 @@ public partial class TopBarUI : Control
         _startBtn.AddThemeColorOverride("font_color", Colors.White);
         _startBtn.AddThemeFontSizeOverride("font_size", 14);
         _startBtn.Size = new Vector2(130, 36);
-        _startBtn.Position = new Vector2(620, 6);
         var btnStyle = new StyleBoxFlat();
         btnStyle.BgColor = new Color(0.2f, 0.6f, 0.25f);
         btnStyle.CornerRadiusTopLeft = 6;
@@ -101,8 +122,58 @@ public partial class TopBarUI : Control
         _stateLabel.Text = "准备阶段";
         _stateLabel.AddThemeColorOverride("font_color", new Color(0.5f, 1f, 0.5f));
         _stateLabel.AddThemeFontSizeOverride("font_size", 13);
-        _stateLabel.Position = new Vector2(200, 13);
         AddChild(_stateLabel);
+    }
+
+    /// <summary>
+    /// 根据当前 Size 重新定位内部元素
+    /// </summary>
+    private void Relayout()
+    {
+        float w = Size.X;
+        float h = Size.Y;
+
+        // 背景
+        if (_bgRect != null) _bgRect.Size = new Vector2(w, h);
+
+        // 分隔线（底部）
+        if (_sepRect != null) _sepRect.Position = new Vector2(0, h - 1);
+
+        // 金币图标（左上）
+        if (_goldIcon != null) _goldIcon.Position = new Vector2(14, (h - 28) / 2);
+
+        // 金币数值
+        if (_goldLabel != null)
+        {
+            _goldLabel.Position = new Vector2(10, (h - 28) / 2);
+            _goldLabel.Size = new Vector2(100, 28);
+        }
+
+        // 波次（居中）
+        if (_waveLabel != null)
+        {
+            _waveLabel.Position = new Vector2(w * 0.45f - 60, (h - 24) / 2);
+            _waveLabel.Size = new Vector2(120, 24);
+        }
+
+        // 开始按钮（右侧偏左）
+        if (_startBtn != null)
+        {
+            _startBtn.Position = new Vector2(w * 0.7f, (h - 36) / 2);
+        }
+
+        // 生命值（右侧）
+        if (_lifeLabel != null)
+        {
+            _lifeLabel.Position = new Vector2(w - 90, (h - 28) / 2);
+            _lifeLabel.Size = new Vector2(80, 28);
+        }
+
+        // 状态标签（中间偏左）
+        if (_stateLabel != null)
+        {
+            _stateLabel.Position = new Vector2(w * 0.22f, (h - 20) / 2);
+        }
     }
 
     private void UpdateLife(int life)
@@ -147,7 +218,6 @@ public partial class TopBarUI : Control
             _toastLabel = new Label();
             _toastLabel.AddThemeFontSizeOverride("font_size", 14);
             _toastLabel.AddThemeColorOverride("font_color", Colors.White);
-            _toastLabel.Position = new Vector2(300, 60);
             _toastLabel.Size = new Vector2(300, 30);
             _toastLabel.HorizontalAlignment = HorizontalAlignment.Center;
             var bg = new StyleBoxFlat();
@@ -160,21 +230,9 @@ public partial class TopBarUI : Control
         }
 
         _toastLabel.Text = message;
+        _toastLabel.Position = new Vector2((Size.X - 300) / 2, 60);
         _toastLabel.Modulate = Colors.White;
         _toastTimer = 2.5f;
-    }
-
-    public override void _Process(double delta)
-    {
-        if (_toastTimer > 0 && _toastLabel != null)
-        {
-            _toastTimer -= (float)delta;
-            if (_toastTimer <= 0.5f)
-            {
-                float alpha = _toastTimer / 0.5f;
-                _toastLabel.Modulate = new Color(1, 1, 1, alpha);
-            }
-        }
     }
 
     private void OnMergeAvailable(string heroName)
@@ -184,9 +242,11 @@ public partial class TopBarUI : Control
 
     private void OnGameOver(bool win)
     {
+        var viewportSize = GetViewportRect().Size;
+
         var overlay = new ColorRect();
         overlay.Color = new Color(0f, 0f, 0f, 0.7f);
-        overlay.Size = new Vector2(900, 700);
+        overlay.Size = viewportSize;
         overlay.ZIndex = 100;
         GetParent().AddChild(overlay);
 
@@ -194,8 +254,8 @@ public partial class TopBarUI : Control
         msg.Text = win ? "🎉 胜 利！\n成功守住了所有波次！" : "💀 失 败！\n城池已被攻破...";
         msg.AddThemeFontSizeOverride("font_size", 36);
         msg.AddThemeColorOverride("font_color", win ? new Color(1f, 0.9f, 0.2f) : new Color(1f, 0.3f, 0.3f));
-        msg.Position = new Vector2(280, 280);
         msg.Size = new Vector2(340, 120);
+        msg.Position = (viewportSize - msg.Size) / 2;
         msg.HorizontalAlignment = HorizontalAlignment.Center;
         msg.ZIndex = 101;
         GetParent().AddChild(msg);

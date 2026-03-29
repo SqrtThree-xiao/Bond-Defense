@@ -3,27 +3,46 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 羁绊面板UI - 实时展示当前激活的羁绊
+/// 支持自适应高度
 /// </summary>
 public partial class SynergyPanel : Control
 {
     private SynergyManager _synergyManager;
     private VBoxContainer _listContainer;
+    private ColorRect _bgRect;
+    private ColorRect _sepRect;
 
     public override void _Ready()
     {
+        Resized += OnResized;
+
         _synergyManager = GetTree().Root.GetNode<Main>("Main").GetNode<SynergyManager>("SynergyManager");
         _synergyManager.SynergiesUpdated += RefreshDisplay;
 
         BuildUI();
     }
 
+    private void OnResized()
+    {
+        // 更新背景和分隔线大小
+        if (_bgRect != null) _bgRect.Size = Size;
+        if (_sepRect != null)
+        {
+            _sepRect.Size = new Vector2(Size.X - 20, 1);
+        }
+        // 更新列表容器大小
+        if (_listContainer != null)
+        {
+            _listContainer.Size = new Vector2(Size.X - 16, Size.Y - 40);
+        }
+    }
+
     private void BuildUI()
     {
         // 背景
-        var bg = new ColorRect();
-        bg.Color = new Color(0.06f, 0.1f, 0.2f, 0.92f);
-        bg.Size = new Vector2(180, 600);
-        AddChild(bg);
+        _bgRect = new ColorRect();
+        _bgRect.Color = new Color(0.06f, 0.1f, 0.2f, 0.92f);
+        AddChild(_bgRect);
 
         // 标题
         var title = new Label();
@@ -34,15 +53,13 @@ public partial class SynergyPanel : Control
         AddChild(title);
 
         // 分隔线
-        var sep = new ColorRect();
-        sep.Color = new Color(0.4f, 0.4f, 0.4f);
-        sep.Size = new Vector2(160, 1);
-        sep.Position = new Vector2(10, 32);
-        AddChild(sep);
+        _sepRect = new ColorRect();
+        _sepRect.Color = new Color(0.4f, 0.4f, 0.4f);
+        _sepRect.Position = new Vector2(10, 32);
+        AddChild(_sepRect);
 
         _listContainer = new VBoxContainer();
         _listContainer.Position = new Vector2(8, 40);
-        _listContainer.Size = new Vector2(164, 540);
         _listContainer.AddThemeConstantOverride("separation", 4);
         AddChild(_listContainer);
 
@@ -63,8 +80,10 @@ public partial class SynergyPanel : Control
 
     private Control CreateSynergyRow(SynergyData data, int count, int tier)
     {
+        float panelWidth = Size.X > 0 ? Size.X - 8 : 172;
+
         var row = new Panel();
-        row.CustomMinimumSize = new Vector2(160, 42);
+        row.CustomMinimumSize = new Vector2(panelWidth, 42);
 
         var style = new StyleBoxFlat();
         bool active = tier > 0;
@@ -103,7 +122,7 @@ public partial class SynergyPanel : Control
         countLabel.Text = $"{count}/{nextThreshold}";
         countLabel.AddThemeColorOverride("font_color", active ? data.SynergyColor : new Color(0.5f, 0.5f, 0.5f));
         countLabel.AddThemeFontSizeOverride("font_size", 11);
-        countLabel.Position = new Vector2(120, 4);
+        countLabel.Position = new Vector2(panelWidth - 50, 4);
         row.AddChild(countLabel);
 
         // 效果描述
@@ -115,7 +134,7 @@ public partial class SynergyPanel : Control
             effectLabel.AddThemeColorOverride("font_color", data.SynergyColor.Lightened(0.3f));
             effectLabel.AddThemeFontSizeOverride("font_size", 9);
             effectLabel.Position = new Vector2(14, 23);
-            effectLabel.Size = new Vector2(140, 14);
+            effectLabel.Size = new Vector2(panelWidth - 20, 14);
             row.AddChild(effectLabel);
         }
 

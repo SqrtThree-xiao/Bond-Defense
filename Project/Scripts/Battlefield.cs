@@ -13,6 +13,9 @@ public partial class Battlefield : Node2D
 
     // 战场起始位置（左上角）
     [Export] public Vector2 GridOrigin { get; set; } = new Vector2(60f, 80f);
+    
+    // 战场尺寸（由外部设置）
+    public Vector2 Size { get; set; } = new Vector2(560f, 320f); // 默认值：7*80, 4*80
 
     // 敌人路径（从左到右穿越战场）
     private Vector2[] _enemyPath;
@@ -33,6 +36,9 @@ public partial class Battlefield : Node2D
     private Vector2 _dragOriginalPos;
     private Vector2I _dragOriginalCell;
     private bool _isDraggingFromBench = false; // 是否从待部署区拖拽来
+    
+    // 路径可视化
+    private Line2D _pathLine;
 
     [Signal]
     public delegate void HeroPlacedEventHandler(Hero hero, int col, int row);
@@ -49,10 +55,14 @@ public partial class Battlefield : Node2D
 
         _grid = new Hero[GridCols, GridRows];
         _cellVisuals = new ColorRect[GridCols, GridRows];
+        
+        // 初始化路径可视化
+        _pathLine = new Line2D();
+        _pathLine.Width = 8f;
+        _pathLine.DefaultColor = new Color(0.8f, 0.3f, 0.1f, 0.4f);
+        AddChild(_pathLine);
 
-        BuildPath();
-        BuildGridVisuals();
-        DrawPathVisual();
+        // 初始化布局（会在外部调用UpdateLayout）
     }
 
     private void BuildPath()
@@ -69,10 +79,37 @@ public partial class Battlefield : Node2D
         pts.Add(new Vector2(GridOrigin.X + GridCols * CellSize * 2 / 3, midY));
         pts.Add(new Vector2(endX, midY));
         _enemyPath = pts.ToArray();
+        
+        // 更新路径可视化
+        DrawPathVisual();
     }
 
     private void BuildGridVisuals()
     {
+        // 清除旧的格子视觉
+        foreach (var cell in _cellVisuals)
+        {
+            if (cell != null && IsInstanceValid(cell))
+                cell.QueueFree();
+        }
+        
+        _cellVisuals = new ColorRect[GridCols, GridRows];
+
+        // 计算格子大小（根据可用空间）
+        float availableWidth = Size.X;
+        float availableHeight = Size.Y;
+        float cellWidth = availableWidth / GridCols;
+        float cellHeight = availableHeight / GridRows;
+        CellSize = Mathf.Min(cellWidth, cellHeight);
+        
+        // 计算起始位置（居中）
+        float totalWidth = GridCols * CellSize;
+        float totalHeight = GridRows * CellSize;
+        GridOrigin = new Vector2(
+            (availableWidth - totalWidth) / 2,
+            (availableHeight - totalHeight) / 2
+        );
+
         for (int col = 0; col < GridCols; col++)
         {
             for (int row = 0; row < GridRows; row++)
@@ -82,11 +119,8 @@ public partial class Battlefield : Node2D
                 cell.Position = GridOrigin + new Vector2(col * CellSize + 2, row * CellSize + 2);
                 cell.Color = new Color(0.15f, 0.25f, 0.35f, 0.7f);
 
-                // 圆角效果用border
                 AddChild(cell);
                 _cellVisuals[col, row] = cell;
-
-                // 格子索引标签（仅在边缘）
             }
         }
     }
@@ -94,22 +128,33 @@ public partial class Battlefield : Node2D
     private void DrawPathVisual()
     {
         if (_enemyPath == null || _enemyPath.Length < 2) return;
-        var line = new Line2D();
-        line.Width = 8f;
-        line.DefaultColor = new Color(0.8f, 0.3f, 0.1f, 0.4f);
-        line.Points = _enemyPath;
-        line.ZIndex = -1;
-        AddChild(line);
-
-        // 箭头
-        for (int i = 0; i < _enemyPath.Length - 1; i++)
+        
+        _pathLine.ClearPoints();
+        foreach (var pt in _enemyPath)
         {
-            var arrow = new Label();
-            arrow.Text = "▶";
-            arrow.AddThemeFontSizeOverride("font_size", 16);
-            arrow.AddThemeColorOverride("font_color", new Color(1f, 0.6f, 0.2f, 0.6f));
-            arrow.Position = (_enemyPath[i] + _enemyPath[i + 1]) / 2 - new Vector2(8, 10);
-            AddChild(arrow);
+            _pathLine.AddPoint(pt);
+        }
+    }
+
+    /// <summary>
+    /// 更新战场布局（窗口大小变化时由 Main 调用）
+    /// </summary>
+    public void UpdateLayout(Vector2 newSize)
+    {
+        Size = newSize;
+        BuildGridVisuals();
+        BuildPath();
+        
+        // 重新定位已有英雄
+        for (int c = 0; c < GridCols; c++)
+        {
+            for (int r = 0; r < GridRows; r++)
+            {
+                if (_grid[c, r] != null && IsInstanceValid(_grid[c, r]))
+                {
+                    _grid[c, r].GlobalPosition = GridToWorld(c, r);
+                }
+            }
         }
     }
 

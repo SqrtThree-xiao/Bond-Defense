@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 商店UI - 展示商店英雄卡片，处理购买、刷新、锁定
+/// 支持自适应宽度
 /// </summary>
 public partial class ShopUI : Control
 {
@@ -10,7 +11,6 @@ public partial class ShopUI : Control
     private HBoxContainer _slotsContainer;
     private Button _refreshBtn;
     private Button _lockBtn;
-    private Label _lockLabel;
 
     [Signal]
     public delegate void HeroBoughtEventHandler(int slotIndex);
@@ -30,8 +30,7 @@ public partial class ShopUI : Control
         // 商店面板背景
         var bg = new ColorRect();
         bg.Color = new Color(0.08f, 0.12f, 0.2f, 0.95f);
-        bg.Size = new Vector2(700, 110);
-        bg.Position = Vector2.Zero;
+        bg.Name = "ShopBg";
         AddChild(bg);
 
         // 标题
@@ -50,14 +49,12 @@ public partial class ShopUI : Control
 
         // 刷新按钮
         _refreshBtn = MakeButton("刷新(2金)", new Color(0.2f, 0.5f, 0.8f));
-        _refreshBtn.Position = new Vector2(560, 28);
         _refreshBtn.Size = new Vector2(120, 35);
         _refreshBtn.Pressed += () => _gameManager.RefreshShop(true);
         AddChild(_refreshBtn);
 
         // 锁定按钮
         _lockBtn = MakeButton("🔓 锁定", new Color(0.5f, 0.3f, 0.1f));
-        _lockBtn.Position = new Vector2(560, 70);
         _lockBtn.Size = new Vector2(120, 35);
         _lockBtn.Pressed += () =>
         {
@@ -65,6 +62,25 @@ public partial class ShopUI : Control
             UpdateLockButton();
         };
         AddChild(_lockBtn);
+    }
+
+    public override void _Process(double delta)
+    {
+        // 响应尺寸变化，更新按钮位置
+        float w = Size.X;
+        float h = Size.Y;
+
+        var bg = GetNodeOrNull<ColorRect>("ShopBg");
+        if (bg != null) bg.Size = new Vector2(w, h);
+
+        if (_refreshBtn != null)
+        {
+            _refreshBtn.Position = new Vector2(w - 140, 28);
+        }
+        if (_lockBtn != null)
+        {
+            _lockBtn.Position = new Vector2(w - 140, 70);
+        }
     }
 
     private Button MakeButton(string text, Color color)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 待部署区UI - 展示已购买英雄，支持拖拽到战场
+/// 支持自适应宽度
 /// </summary>
 public partial class BenchUI : Control
 {
@@ -10,7 +11,7 @@ public partial class BenchUI : Control
     private Battlefield _battlefield;
     private HBoxContainer _benchContainer;
     private Hero _draggingHero = null;
-    private Control _dragPreview = null;
+    private ColorRect _bgRect;
 
     public override void _Ready()
     {
@@ -24,10 +25,9 @@ public partial class BenchUI : Control
     private void BuildUI()
     {
         // 背景
-        var bg = new ColorRect();
-        bg.Color = new Color(0.06f, 0.1f, 0.18f, 0.9f);
-        bg.Size = new Vector2(700, 80);
-        AddChild(bg);
+        _bgRect = new ColorRect();
+        _bgRect.Color = new Color(0.06f, 0.1f, 0.18f, 0.9f);
+        AddChild(_bgRect);
 
         var title = new Label();
         title.Text = "待部署区";
@@ -40,6 +40,12 @@ public partial class BenchUI : Control
         _benchContainer.Position = new Vector2(8, 22);
         _benchContainer.AddThemeConstantOverride("separation", 6);
         AddChild(_benchContainer);
+    }
+
+    public override void _Process(double delta)
+    {
+        // 响应尺寸变化
+        if (_bgRect != null) _bgRect.Size = Size;
     }
 
     public void RefreshDisplay()
