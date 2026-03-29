@@ -18,5 +18,6 @@ echo   synergy.json  - Synergy/Bond data
 echo   wave.json     - Wave difficulty config
 echo   enemy.json    - Enemy types
 echo   shop.json     - Shop settings
+echo   ui.json       - UI layout config
 echo.
 pause

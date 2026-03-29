@@ -75,7 +75,7 @@ public class ShopConfig
 }
 
 /// <summary>
-/// UI 配置数据（对应 Resources/Config/ui/ui.json）
+/// UI 配置数据（对应 tables/data/ui.xlsx）
 /// </summary>
 public class UIConfig
 {
@@ -83,4 +83,8 @@ public class UIConfig
     public string Name          { get; set; } = "";
     public string Script        { get; set; } = "";
     public string ResourcePath  { get; set; } = "";
+    /// <summary>CanvasLayer 渲染层级，0 表示使用父节点层级</summary>
+    public int    UILayer       { get; set; } = 0;
+    /// <summary>界面说明（仅供策划参考）</summary>
+    public string Description   { get; set; } = "";
 }

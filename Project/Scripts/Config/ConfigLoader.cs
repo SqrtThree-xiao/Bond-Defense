@@ -224,6 +224,8 @@ public partial class ConfigLoader : Node
             Name         = row["name"].AsString(),
             Script       = row["script"].AsString(),
             ResourcePath = row["resource_path"].AsString(),
+            UILayer      = row.ContainsKey("ui_layer") ? (int)row["ui_layer"].AsInt64() : 0,
+            Description  = row.ContainsKey("description") ? row["description"].AsString() : "",
         };
     }
 }

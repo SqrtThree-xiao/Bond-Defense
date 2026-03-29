@@ -19,7 +19,12 @@ public partial class SynergyPanel : Control
         _synergyManager = GetTree().Root.GetNode<Main>("Main").GetNode<SynergyManager>("SynergyManager");
         _synergyManager.SynergiesUpdated += RefreshDisplay;
 
-        BuildUI();
+        // 从预制场景获取子节点
+        _bgRect = GetNode<ColorRect>("BgRect");
+        _sepRect = GetNode<ColorRect>("SepRect");
+        _listContainer = GetNode<VBoxContainer>("ListContainer");
+
+        RefreshDisplay();
     }
 
     private void OnResized()
@@ -35,35 +40,6 @@ public partial class SynergyPanel : Control
         {
             _listContainer.Size = new Vector2(Size.X - 16, Size.Y - 40);
         }
-    }
-
-    private void BuildUI()
-    {
-        // 背景
-        _bgRect = new ColorRect();
-        _bgRect.Color = new Color(0.06f, 0.1f, 0.2f, 0.92f);
-        AddChild(_bgRect);
-
-        // 标题
-        var title = new Label();
-        title.Text = "羁 绊";
-        title.AddThemeFontSizeOverride("font_size", 15);
-        title.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
-        title.Position = new Vector2(55, 8);
-        AddChild(title);
-
-        // 分隔线
-        _sepRect = new ColorRect();
-        _sepRect.Color = new Color(0.4f, 0.4f, 0.4f);
-        _sepRect.Position = new Vector2(10, 32);
-        AddChild(_sepRect);
-
-        _listContainer = new VBoxContainer();
-        _listContainer.Position = new Vector2(8, 40);
-        _listContainer.AddThemeConstantOverride("separation", 4);
-        AddChild(_listContainer);
-
-        RefreshDisplay();
     }
 
     public void RefreshDisplay()

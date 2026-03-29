@@ -19,27 +19,9 @@ public partial class BenchUI : Control
         _battlefield = GetTree().Root.GetNode<Main>("Main").GetNode<Battlefield>("Battlefield");
         _gameManager.BenchChanged += RefreshDisplay;
 
-        BuildUI();
-    }
-
-    private void BuildUI()
-    {
-        // 背景
-        _bgRect = new ColorRect();
-        _bgRect.Color = new Color(0.06f, 0.1f, 0.18f, 0.9f);
-        AddChild(_bgRect);
-
-        var title = new Label();
-        title.Text = "待部署区";
-        title.AddThemeFontSizeOverride("font_size", 12);
-        title.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
-        title.Position = new Vector2(8, 4);
-        AddChild(title);
-
-        _benchContainer = new HBoxContainer();
-        _benchContainer.Position = new Vector2(8, 22);
-        _benchContainer.AddThemeConstantOverride("separation", 6);
-        AddChild(_benchContainer);
+        // 从预制场景获取子节点
+        _bgRect = GetNode<ColorRect>("BgRect");
+        _benchContainer = GetNode<HBoxContainer>("BenchContainer");
     }
 
     public override void _Process(double delta)

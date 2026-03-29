@@ -25,6 +25,21 @@ public partial class TopBarUI : Control
         Resized += () => _layoutDirty = true;
 
         _gameManager = GetTree().Root.GetNode<Main>("Main").GetNode<GameManager>("GameManager");
+
+        // 从预制场景获取子节点
+        _bgRect = GetNode<ColorRect>("BgRect");
+        _sepRect = GetNode<ColorRect>("SepRect");
+        _goldIcon = GetNode<Label>("GoldIcon");
+        _goldLabel = GetNode<Label>("GoldLabel");
+        _waveLabel = GetNode<Label>("WaveLabel");
+        _lifeLabel = GetNode<Label>("LifeLabel");
+        _startBtn = GetNode<Button>("StartBtn");
+        _stateLabel = GetNode<Label>("StateLabel");
+
+        // 为开始按钮应用样式（场景中只有文字和位置）
+        ApplyStartBtnStyle();
+
+        // 连接信号
         _gameManager.GoldChanged += (g) => { if (_goldLabel != null) _goldLabel.Text = $"💰 {g}"; };
         _gameManager.LifeChanged += (l) => { if (_lifeLabel != null) UpdateLife(l); };
         _gameManager.WaveChanged += (w, max) => { if (_waveLabel != null) _waveLabel.Text = $"波次 {w}/{max}"; };
@@ -33,7 +48,24 @@ public partial class TopBarUI : Control
         _gameManager.GameOver += OnGameOver;
         _gameManager.MergeAvailable += OnMergeAvailable;
 
-        BuildUI();
+        _startBtn.Pressed += () => _gameManager.StartBattle();
+    }
+
+    /// <summary>
+    /// 为开始按钮应用圆角样式
+    /// </summary>
+    private void ApplyStartBtnStyle()
+    {
+        var btnStyle = new StyleBoxFlat();
+        btnStyle.BgColor = new Color(0.2f, 0.6f, 0.25f);
+        btnStyle.CornerRadiusTopLeft = 6;
+        btnStyle.CornerRadiusTopRight = 6;
+        btnStyle.CornerRadiusBottomLeft = 6;
+        btnStyle.CornerRadiusBottomRight = 6;
+        _startBtn.AddThemeStyleboxOverride("normal", btnStyle);
+        var hoverStyle = btnStyle.Duplicate() as StyleBoxFlat;
+        hoverStyle.BgColor = new Color(0.3f, 0.75f, 0.35f);
+        _startBtn.AddThemeStyleboxOverride("hover", hoverStyle);
     }
 
     public override void _Process(double delta)
@@ -57,74 +89,6 @@ public partial class TopBarUI : Control
         }
     }
 
-    private void BuildUI()
-    {
-        // 背景
-        _bgRect = new ColorRect();
-        _bgRect.Color = new Color(0.05f, 0.08f, 0.15f, 0.95f);
-        AddChild(_bgRect);
-
-        // 分隔线
-        _sepRect = new ColorRect();
-        _sepRect.Color = new Color(0.3f, 0.4f, 0.6f, 0.5f);
-        _sepRect.Size = new Vector2(1, 1);
-        AddChild(_sepRect);
-
-        // 金币图标
-        _goldIcon = new Label();
-        _goldIcon.Text = "💰";
-        _goldIcon.AddThemeFontSizeOverride("font_size", 20);
-        AddChild(_goldIcon);
-
-        // 金币数值
-        _goldLabel = new Label();
-        _goldLabel.Text = $"💰 {_gameManager.Gold}";
-        _goldLabel.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.3f));
-        _goldLabel.AddThemeFontSizeOverride("font_size", 18);
-        AddChild(_goldLabel);
-
-        // 波次（居中）
-        _waveLabel = new Label();
-        _waveLabel.Text = $"波次 {_gameManager.Wave}/{_gameManager.MaxWave}";
-        _waveLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.9f, 1f));
-        _waveLabel.AddThemeFontSizeOverride("font_size", 16);
-        _waveLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        AddChild(_waveLabel);
-
-        // 生命值（右侧）
-        _lifeLabel = new Label();
-        _lifeLabel.Text = $"❤ {_gameManager.Life}";
-        _lifeLabel.AddThemeColorOverride("font_color", new Color(1f, 0.3f, 0.4f));
-        _lifeLabel.AddThemeFontSizeOverride("font_size", 18);
-        AddChild(_lifeLabel);
-
-        // 开始战斗按钮
-        _startBtn = new Button();
-        _startBtn.Text = "开始战斗 ▶";
-        _startBtn.AddThemeColorOverride("font_color", Colors.White);
-        _startBtn.AddThemeFontSizeOverride("font_size", 14);
-        _startBtn.Size = new Vector2(130, 36);
-        var btnStyle = new StyleBoxFlat();
-        btnStyle.BgColor = new Color(0.2f, 0.6f, 0.25f);
-        btnStyle.CornerRadiusTopLeft = 6;
-        btnStyle.CornerRadiusTopRight = 6;
-        btnStyle.CornerRadiusBottomLeft = 6;
-        btnStyle.CornerRadiusBottomRight = 6;
-        _startBtn.AddThemeStyleboxOverride("normal", btnStyle);
-        var hoverStyle = btnStyle.Duplicate() as StyleBoxFlat;
-        hoverStyle.BgColor = new Color(0.3f, 0.75f, 0.35f);
-        _startBtn.AddThemeStyleboxOverride("hover", hoverStyle);
-        _startBtn.Pressed += () => _gameManager.StartBattle();
-        AddChild(_startBtn);
-
-        // 状态标签
-        _stateLabel = new Label();
-        _stateLabel.Text = "准备阶段";
-        _stateLabel.AddThemeColorOverride("font_color", new Color(0.5f, 1f, 0.5f));
-        _stateLabel.AddThemeFontSizeOverride("font_size", 13);
-        AddChild(_stateLabel);
-    }
-
     /// <summary>
     /// 根据当前 Size 重新定位内部元素
     /// </summary>
@@ -133,10 +97,7 @@ public partial class TopBarUI : Control
         float w = Size.X;
         float h = Size.Y;
 
-        // 背景
-        if (_bgRect != null) _bgRect.Size = new Vector2(w, h);
-
-        // 分隔线（底部）
+        // 分隔线（底部）— 仍需手动定位
         if (_sepRect != null) _sepRect.Position = new Vector2(0, h - 1);
 
         // 金币图标（左上）

@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3 uid="uid://shop_ui"]
+
+[ext_resource type="Script" path="res://Scripts/UI/ShopUI.cs" id="1_shop"]
+
+[node name="ShopUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_shop")
+
+[node name="ShopBg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.12, 0.2, 0.95)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 1
+offset_left = 10.0
+offset_top = 5.0
+offset_right = 60.0
+offset_bottom = 25.0
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+text = "商 店"
+
+[node name="SlotsContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+offset_left = 10.0
+offset_top = 28.0
+offset_right = 630.0
+offset_bottom = 106.0
+theme_override_constants/separation = 8
+
+[node name="RefreshBtn" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -140.0
+offset_top = 28.0
+offset_right = -20.0
+offset_bottom = 63.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "刷新(2金)"
+
+[node name="LockBtn" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -140.0
+offset_top = 70.0
+offset_right = -20.0
+offset_bottom = 105.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "🔓 锁定"

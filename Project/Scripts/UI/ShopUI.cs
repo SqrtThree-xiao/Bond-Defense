@@ -21,57 +21,29 @@ public partial class ShopUI : Control
         _gameManager.ShopRefreshed += RefreshDisplay;
         _gameManager.StateChanged += OnStateChanged;
 
-        BuildUI();
-        RefreshDisplay();
-    }
+        // 从预制场景获取子节点
+        _slotsContainer = GetNode<HBoxContainer>("SlotsContainer");
+        _refreshBtn = GetNode<Button>("RefreshBtn");
+        _lockBtn = GetNode<Button>("LockBtn");
 
-    private void BuildUI()
-    {
-        // 商店面板背景
-        var bg = new ColorRect();
-        bg.Color = new Color(0.08f, 0.12f, 0.2f, 0.95f);
-        bg.Name = "ShopBg";
-        AddChild(bg);
+        // 刷新按钮样式（场景中只有文字，按钮样式在代码中设置以保证一致性）
+        ApplyButtonStyle(_refreshBtn, new Color(0.2f, 0.5f, 0.8f));
+        ApplyButtonStyle(_lockBtn, new Color(0.5f, 0.3f, 0.1f));
 
-        // 标题
-        var title = new Label();
-        title.Text = "商 店";
-        title.AddThemeFontSizeOverride("font_size", 14);
-        title.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
-        title.Position = new Vector2(10, 5);
-        AddChild(title);
-
-        // 英雄槽位容器
-        _slotsContainer = new HBoxContainer();
-        _slotsContainer.Position = new Vector2(10, 28);
-        _slotsContainer.AddThemeConstantOverride("separation", 8);
-        AddChild(_slotsContainer);
-
-        // 刷新按钮
-        _refreshBtn = MakeButton("刷新(2金)", new Color(0.2f, 0.5f, 0.8f));
-        _refreshBtn.Size = new Vector2(120, 35);
         _refreshBtn.Pressed += () => _gameManager.RefreshShop(true);
-        AddChild(_refreshBtn);
-
-        // 锁定按钮
-        _lockBtn = MakeButton("🔓 锁定", new Color(0.5f, 0.3f, 0.1f));
-        _lockBtn.Size = new Vector2(120, 35);
         _lockBtn.Pressed += () =>
         {
             _gameManager.ToggleShopLock();
             UpdateLockButton();
         };
-        AddChild(_lockBtn);
+
+        RefreshDisplay();
     }
 
     public override void _Process(double delta)
     {
         // 响应尺寸变化，更新按钮位置
         float w = Size.X;
-        float h = Size.Y;
-
-        var bg = GetNodeOrNull<ColorRect>("ShopBg");
-        if (bg != null) bg.Size = new Vector2(w, h);
 
         if (_refreshBtn != null)
         {
@@ -83,12 +55,11 @@ public partial class ShopUI : Control
         }
     }
 
-    private Button MakeButton(string text, Color color)
+    /// <summary>
+    /// 为已有按钮应用样式（按钮本身从预制场景获取）
+    /// </summary>
+    private void ApplyButtonStyle(Button btn, Color color)
     {
-        var btn = new Button();
-        btn.Text = text;
-        btn.AddThemeColorOverride("font_color", Colors.White);
-        btn.AddThemeFontSizeOverride("font_size", 12);
         var style = new StyleBoxFlat();
         style.BgColor = color;
         style.CornerRadiusTopLeft = 4;
@@ -99,7 +70,6 @@ public partial class ShopUI : Control
         var hoverStyle = style.Duplicate() as StyleBoxFlat;
         hoverStyle.BgColor = color.Lightened(0.2f);
         btn.AddThemeStyleboxOverride("hover", hoverStyle);
-        return btn;
     }
 
     private void UpdateLockButton()

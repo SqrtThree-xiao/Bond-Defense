@@ -1,0 +1,101 @@
+[gd_scene load_steps=2 format=3 uid="uid://topbar_ui"]
+
+[ext_resource type="Script" path="res://Scripts/UI/TopBarUI.cs" id="1_topbar"]
+
+[node name="TopBarUI" type="Control"]
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("1_topbar")
+
+[node name="BgRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.08, 0.15, 0.95)
+
+[node name="SepRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.0
+grow_horizontal = 2
+grow_vertical = 0
+color = Color(0.3, 0.4, 0.6, 0.5)
+
+[node name="GoldIcon" type="Label" parent="."]
+layout_mode = 1
+offset_left = 14.0
+offset_top = 10.0
+offset_right = 44.0
+offset_bottom = 38.0
+theme_override_font_sizes/font_size = 20
+text = "💰"
+
+[node name="GoldLabel" type="Label" parent="."]
+layout_mode = 1
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 110.0
+offset_bottom = 38.0
+theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
+theme_override_font_sizes/font_size = 18
+text = "💰 30"
+
+[node name="WaveLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -60.0
+offset_top = 12.0
+offset_right = 60.0
+offset_bottom = 36.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.7, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+text = "波次 1/10"
+
+[node name="LifeLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -90.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 38.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.3, 0.4, 1)
+theme_override_font_sizes/font_size = 18
+text = "❤ 20"
+
+[node name="StartBtn" type="Button" parent="."]
+layout_mode = 1
+offset_left = 500.0
+offset_top = 6.0
+offset_right = 630.0
+offset_bottom = 42.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "开始战斗 ▶"
+
+[node name="StateLabel" type="Label" parent="."]
+layout_mode = 1
+offset_left = 200.0
+offset_top = 14.0
+offset_right = 340.0
+offset_bottom = 34.0
+theme_override_colors/font_color = Color(0.5, 1, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "准备阶段"
