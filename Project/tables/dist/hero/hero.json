@@ -1,0 +1,122 @@
+{
+  "1": {
+    "id": 1,
+    "name": "人类弓手",
+    "rarity": "common",
+    "cost": 1,
+    "attack": 30,
+    "attack_speed": 1.0,
+    "range": 200.0,
+    "hp": 300,
+    "tags": [
+      "human",
+      "warrior"
+    ],
+    "color": "4a90d9"
+  },
+  "2": {
+    "id": 2,
+    "name": "精灵法师",
+    "rarity": "common",
+    "cost": 1,
+    "attack": 25,
+    "attack_speed": 0.8,
+    "range": 280.0,
+    "hp": 250,
+    "tags": [
+      "elf",
+      "mage"
+    ],
+    "color": "7ed321"
+  },
+  "3": {
+    "id": 3,
+    "name": "兽人战士",
+    "rarity": "common",
+    "cost": 1,
+    "attack": 40,
+    "attack_speed": 0.7,
+    "range": 120.0,
+    "hp": 400,
+    "tags": [
+      "beast",
+      "warrior"
+    ],
+    "color": "f5a623"
+  },
+  "4": {
+    "id": 4,
+    "name": "人类骑士",
+    "rarity": "rare",
+    "cost": 2,
+    "attack": 50,
+    "attack_speed": 0.9,
+    "range": 150.0,
+    "hp": 500,
+    "tags": [
+      "human",
+      "warrior"
+    ],
+    "color": "9b59b6"
+  },
+  "5": {
+    "id": 5,
+    "name": "精灵猎手",
+    "rarity": "rare",
+    "cost": 2,
+    "attack": 45,
+    "attack_speed": 1.2,
+    "range": 250.0,
+    "hp": 350,
+    "tags": [
+      "elf",
+      "warrior"
+    ],
+    "color": "1abc9c"
+  },
+  "6": {
+    "id": 6,
+    "name": "法师学徒",
+    "rarity": "rare",
+    "cost": 2,
+    "attack": 35,
+    "attack_speed": 0.6,
+    "range": 320.0,
+    "hp": 300,
+    "tags": [
+      "human",
+      "mage"
+    ],
+    "color": "e74c3c"
+  },
+  "7": {
+    "id": 7,
+    "name": "野兽猎手",
+    "rarity": "epic",
+    "cost": 3,
+    "attack": 65,
+    "attack_speed": 1.5,
+    "range": 180.0,
+    "hp": 450,
+    "tags": [
+      "beast",
+      "warrior"
+    ],
+    "color": "e67e22"
+  },
+  "8": {
+    "id": 8,
+    "name": "精灵祭司",
+    "rarity": "epic",
+    "cost": 3,
+    "attack": 55,
+    "attack_speed": 0.5,
+    "range": 300.0,
+    "hp": 350,
+    "tags": [
+      "elf",
+      "mage"
+    ],
+    "color": "8e44ad"
+  }
+}

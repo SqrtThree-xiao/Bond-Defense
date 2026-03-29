@@ -1,0 +1,47 @@
+{
+  "1": {
+    "id": 1,
+    "name": "普通小兵",
+    "hp": 80,
+    "speed": 70.0,
+    "kill_reward": 2,
+    "life_damage": 1,
+    "color": "e74c3c"
+  },
+  "2": {
+    "id": 2,
+    "name": "快速兵",
+    "hp": 60,
+    "speed": 120.0,
+    "kill_reward": 3,
+    "life_damage": 1,
+    "color": "e67e22"
+  },
+  "3": {
+    "id": 3,
+    "name": "重甲兵",
+    "hp": 200,
+    "speed": 50.0,
+    "kill_reward": 5,
+    "life_damage": 2,
+    "color": "95a5a6"
+  },
+  "4": {
+    "id": 4,
+    "name": "精英兵",
+    "hp": 150,
+    "speed": 80.0,
+    "kill_reward": 8,
+    "life_damage": 2,
+    "color": "9b59b6"
+  },
+  "5": {
+    "id": 5,
+    "name": "首领",
+    "hp": 500,
+    "speed": 60.0,
+    "kill_reward": 20,
+    "life_damage": 5,
+    "color": "2c3e50"
+  }
+}

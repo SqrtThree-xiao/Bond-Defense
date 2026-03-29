@@ -1,0 +1,8 @@
+version = "3.0.1"
+engine = "xlrd"
+ignore_sheet_mark = "~"
+ignore_field_mark = "*"
+custom_generator = "JSON2.0"
+input = "data"
+output = "dist"
+project_root = "../"

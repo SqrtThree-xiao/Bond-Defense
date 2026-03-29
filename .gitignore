@@ -1,0 +1,34 @@
+# Godot 4 缓存
+.godot/
+*.import
+
+# Mono/.NET
+bin/
+obj/
+*.userprefs
+*.exe
+*.dll
+*.so
+*.pdb
+*.mdb
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 项目特定
+build_errors.txt
+log.txt
+
+# WorkBuddy 工作记忆（AI 临时文件）
+.workbuddy/
+
+# 配置表生成的中间文件（保留同步后的最终文件）
+# tables/dist/ 和 Resources/Config/ 都保留，它们是最终数据源
+# 但 Excel 源文件（tables/data/）和导出配置（export.toml）也保留
+
+# IDE
+.vscode/
+.idea/
+*.sln
+*.csproj.user

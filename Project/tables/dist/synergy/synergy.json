@@ -1,0 +1,117 @@
+{
+  "1": {
+    "id": 1,
+    "name": "人类",
+    "tag": "human",
+    "tier1": 2,
+    "tier2": 4,
+    "descriptions": [
+      "攻击力+10%",
+      "攻击力+25%"
+    ],
+    "atk_bonus": [
+      "10",
+      "25"
+    ],
+    "spd_bonus": [
+      "0",
+      "0"
+    ],
+    "range_bonus": [
+      "0",
+      "0"
+    ]
+  },
+  "2": {
+    "id": 2,
+    "name": "精灵",
+    "tag": "elf",
+    "tier1": 2,
+    "tier2": 4,
+    "descriptions": [
+      "攻速+15%",
+      "攻速+30%范围+10%"
+    ],
+    "atk_bonus": [
+      "0",
+      "0"
+    ],
+    "spd_bonus": [
+      "15",
+      "30"
+    ],
+    "range_bonus": [
+      "0",
+      "10"
+    ]
+  },
+  "3": {
+    "id": 3,
+    "name": "战士",
+    "tag": "warrior",
+    "tier1": 2,
+    "tier2": 4,
+    "descriptions": [
+      "攻击+8%攻速+8%",
+      "攻击+20%攻速+20%"
+    ],
+    "atk_bonus": [
+      "8",
+      "20"
+    ],
+    "spd_bonus": [
+      "8",
+      "20"
+    ],
+    "range_bonus": [
+      "0",
+      "0"
+    ]
+  },
+  "4": {
+    "id": 4,
+    "name": "法师",
+    "tag": "mage",
+    "tier1": 2,
+    "tier2": 4,
+    "descriptions": [
+      "范围+20%",
+      "范围+50%"
+    ],
+    "atk_bonus": [
+      "0",
+      "0"
+    ],
+    "spd_bonus": [
+      "0",
+      "0"
+    ],
+    "range_bonus": [
+      "20",
+      "50"
+    ]
+  },
+  "5": {
+    "id": 5,
+    "name": "野兽",
+    "tag": "beast",
+    "tier1": 2,
+    "tier2": 4,
+    "descriptions": [
+      "攻速+20%",
+      "攻速+50%"
+    ],
+    "atk_bonus": [
+      "0",
+      "0"
+    ],
+    "spd_bonus": [
+      "20",
+      "50"
+    ],
+    "range_bonus": [
+      "0",
+      "0"
+    ]
+  }
+}
