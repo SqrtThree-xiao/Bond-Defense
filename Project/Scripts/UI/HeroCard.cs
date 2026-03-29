@@ -28,6 +28,16 @@ public partial class HeroCard : Button
         ApplyDefaultStyle(new Color(0.15f, 0.2f, 0.35f), Colors.White);
     }
 
+    public override void _GuiInput(InputEvent @event)
+    {
+        // 拦截鼠标拖拽事件，阻止传播到 Battlefield 的 _Input 拖拽系统
+        // 不拦截点击事件，保留 Button.Pressed 信号正常工作
+        if (@event is InputEventMouseMotion)
+        {
+            AcceptEvent();
+        }
+    }
+
     /// <summary>
     /// 绑定英雄数据到卡牌UI
     /// </summary>

@@ -269,16 +269,21 @@ public partial class Battlefield : Node2D
     // HeroStorage 引用（由 GameManager 设置）
     public Node HeroStorage { get; set; }
 
+    // 拖拽偏移：英雄视觉中心相对原点偏上，需要向上补偿让鼠标对准视觉中心
+    private static readonly Vector2 DragOffset = new Vector2(0, 10f);
+
     public void StartDragFromBench(Hero hero)
     {
         _draggingHero = hero;
         _isDraggingFromBench = true;
         _dragOriginalCell = new Vector2I(-1, -1);
 
-        // 将英雄从 HeroStorage 移入战场，使其可见并可跟随鼠标
+        // 将英雄从 HeroStorage 移入战场
         hero.GetParent()?.RemoveChild(hero);
-        AddChild(hero);
+        // 先设置到鼠标位置（加偏移），再添加到场景树，避免在原点闪烁一帧
+        hero.GlobalPosition = GetGlobalMousePosition() + DragOffset;
         hero.ZIndex = 10; // 拖拽时置顶
+        AddChild(hero);
     }
 
     public void StartDragFromGrid(int col, int row)
@@ -297,9 +302,9 @@ public partial class Battlefield : Node2D
 
         if (@event is InputEventMouseMotion motion)
         {
-            _draggingHero.GlobalPosition = GetGlobalMousePosition();
+            _draggingHero.GlobalPosition = GetGlobalMousePosition() + DragOffset;
 
-            // 高亮悬停格子
+            // 高亮悬停格子（用实际鼠标位置判定格子）
             ClearAllHighlights();
             var cell = WorldToGrid(GetGlobalMousePosition());
             if (IsValidCell(cell.X, cell.Y))

@@ -107,6 +107,7 @@ public partial class BenchUI : Control
         };
 
         slot.TooltipText = $"{hero.Data.HeroName} {hero.Star}★\n{string.Join(", ", hero.Data.Tags)}\n攻击:{hero.FinalAttack:F0} 攻速:{hero.FinalAttackSpeed:F1} 范围:{hero.FinalRange:F0}\n右键出售";
+        slot.SetMeta("hero", hero);
 
         return slot;
     }
@@ -122,9 +123,16 @@ public partial class BenchUI : Control
     private void StartDrag(Hero hero)
     {
         _draggingHero = hero;
-        _battlefield.StartDragFromBench(hero);
-        // 隐藏原位置卡牌，拖拽结束后 RefreshDisplay 会重建
+        // 先隐藏 bench 中被拖拽的卡牌（避免闪烁）
         foreach (var child in _benchContainer.GetChildren())
-            child.QueueFree();
+        {
+            if (child.HasMeta("hero") && child.GetMeta("hero").AsGodotObject() == hero)
+            {
+                ((Control)child).Visible = false;
+                break;
+            }
+        }
+        // 再将英雄移入战场（先设坐标再显示，避免在原点闪烁一帧）
+        _battlefield.StartDragFromBench(hero);
     }
 }
