@@ -2,7 +2,7 @@ using Godot;
 
 /// <summary>
 /// 主场景入口脚本 - 以代码方式构建整个游戏场景树
-/// 支持窗口自适应布局
+/// 支持窗口自适应布局，通过 UIManager 管理所有 UI 界面
 /// </summary>
 public partial class Main : Node2D
 {
@@ -10,12 +10,20 @@ public partial class Main : Node2D
     private GameManager _gameManager;
     private Battlefield _battlefield;
     private CanvasLayer _uiLayer;
+    private UIManager _uiManager;
+
     private TopBarUI _topBar;
     private SynergyPanel _synergyPanel;
     private BenchUI _benchUI;
     private ShopUI _shopUI;
     private ColorRect _background;
     private Label _titleLabel;
+
+    // UI 配置表 ID 常量
+    private const int UI_TOP_BAR     = 1;
+    private const int UI_SYNERGY_PANEL = 2;
+    private const int UI_BENCH       = 3;
+    private const int UI_SHOP        = 4;
 
     // 布局常量
     private const int TOP_BAR_HEIGHT = 48;
@@ -63,25 +71,16 @@ public partial class Main : Node2D
         _uiLayer.Layer = 10;
         AddChild(_uiLayer);
 
-        // 5a. 顶栏
-        _topBar = new TopBarUI();
-        _topBar.Name = "TopBarUI";
-        _uiLayer.AddChild(_topBar);
+        // 6. UIManager（依赖 ConfigLoader，必须在 ConfigLoader 之后创建）
+        _uiManager = new UIManager();
+        _uiManager.Name = "UIManager";
+        _uiLayer.AddChild(_uiManager);
 
-        // 5b. 羁绊面板（右侧）
-        _synergyPanel = new SynergyPanel();
-        _synergyPanel.Name = "SynergyPanel";
-        _uiLayer.AddChild(_synergyPanel);
-
-        // 5c. 待部署区
-        _benchUI = new BenchUI();
-        _benchUI.Name = "BenchUI";
-        _uiLayer.AddChild(_benchUI);
-
-        // 5d. 商店UI
-        _shopUI = new ShopUI();
-        _shopUI.Name = "ShopUI";
-        _uiLayer.AddChild(_shopUI);
+        // 7. 通过 UIManager 根据配置表加载所有 UI 界面
+        _topBar = (TopBarUI)_uiManager.LoadUI(UI_TOP_BAR, _uiLayer);
+        _synergyPanel = (SynergyPanel)_uiManager.LoadUI(UI_SYNERGY_PANEL, _uiLayer);
+        _benchUI = (BenchUI)_uiManager.LoadUI(UI_BENCH, _uiLayer);
+        _shopUI = (ShopUI)_uiManager.LoadUI(UI_SHOP, _uiLayer);
     }
 
     private void BuildBackground()

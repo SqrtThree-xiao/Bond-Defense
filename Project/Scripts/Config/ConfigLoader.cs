@@ -28,6 +28,7 @@ public partial class ConfigLoader : Node
     public Dictionary<int, SynergyConfig> Synergies { get; private set; } = new();
     public Dictionary<int, WaveConfig>    Waves    { get; private set; } = new();
     public Dictionary<int, EnemyConfig>   Enemies  { get; private set; } = new();
+    public Dictionary<int, UIConfig>      UIs      { get; private set; } = new();
     public ShopConfig                     Shop     { get; private set; } = new();
 
     public override void _Ready()
@@ -67,6 +68,11 @@ public partial class ConfigLoader : Node
         return Enemies.TryGetValue(id, out var v) ? v : null;
     }
 
+    public UIConfig GetUI(int id)
+    {
+        return UIs.TryGetValue(id, out var v) ? v : null;
+    }
+
     // ─────────────────────────────────────────────
     // 加载入口
     // ─────────────────────────────────────────────
@@ -77,12 +83,13 @@ public partial class ConfigLoader : Node
         Synergies = LoadTable<SynergyConfig>("res://Resources/Config/synergy/synergy.json", ParseSynergy);
         Waves     = LoadTable<WaveConfig>   ("res://Resources/Config/wave/wave.json",       ParseWave);
         Enemies   = LoadTable<EnemyConfig>  ("res://Resources/Config/enemy/enemy.json",     ParseEnemy);
+        UIs       = LoadTable<UIConfig>     ("res://Resources/Config/ui/ui.json",           ParseUI);
 
         var shopDict = LoadTable<ShopConfig>("res://Resources/Config/shop/shop.json", ParseShop);
         if (shopDict.TryGetValue(1, out var shop))
             Shop = shop;
 
-        GD.Print($"[ConfigLoader] Loaded: {Heroes.Count} heroes, {Waves.Count} waves, {Synergies.Count} synergies, {Enemies.Count} enemies");
+        GD.Print($"[ConfigLoader] Loaded: {Heroes.Count} heroes, {Waves.Count} waves, {Synergies.Count} synergies, {Enemies.Count} enemies, {UIs.Count} uis");
     }
 
     // ─────────────────────────────────────────────
@@ -207,5 +214,16 @@ public partial class ConfigLoader : Node
         foreach (var v in row["hero_pool"].AsGodotArray())
             cfg.HeroPool.Add(v.AsInt64());
         return cfg;
+    }
+
+    private UIConfig ParseUI(Godot.Collections.Dictionary row)
+    {
+        return new UIConfig
+        {
+            Id           = (int)row["id"].AsInt64(),
+            Name         = row["name"].AsString(),
+            Script       = row["script"].AsString(),
+            ResourcePath = row["resource_path"].AsString(),
+        };
     }
 }

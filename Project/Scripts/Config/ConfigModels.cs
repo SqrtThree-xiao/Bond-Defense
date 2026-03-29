@@ -73,3 +73,14 @@ public class ShopConfig
     public int   FreeRefresh  { get; set; }
     public List<object> HeroPool { get; set; } = new();
 }
+
+/// <summary>
+/// UI 配置数据（对应 Resources/Config/ui/ui.json）
+/// </summary>
+public class UIConfig
+{
+    public int    Id            { get; set; }
+    public string Name          { get; set; } = "";
+    public string Script        { get; set; } = "";
+    public string ResourcePath  { get; set; } = "";
+}
