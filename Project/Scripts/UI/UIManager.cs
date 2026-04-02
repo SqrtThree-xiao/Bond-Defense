@@ -26,7 +26,6 @@ public partial class UIManager : Node
     {
         { "TopBarUI",     typeof(TopBarUI) },
         { "SynergyPanel", typeof(SynergyPanel) },
-        { "BenchUI",      typeof(BenchUI) },
         { "ShopUI",       typeof(ShopUI) },
     };
 

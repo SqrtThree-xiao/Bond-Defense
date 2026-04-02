@@ -97,8 +97,8 @@ public static class GameConst
         /// <summary>商店区域高度</summary>
         public const int ShopHeight = 110;
 
-        /// <summary>待部署区高度</summary>
-        public const int BenchHeight = 80;
+        /// <summary>待部署区高度（两行槽位 + 内边距 + 标题）</summary>
+        public const int BenchHeight = 140;
 
         /// <summary>右侧面板最小宽度</summary>
         public const int RightPanelMinWidth = 180;
@@ -123,10 +123,10 @@ public static class GameConst
     public static class Grid
     {
         /// <summary>网格列数</summary>
-        public const int Cols = 7;
+        public const int Cols = 9;
 
         /// <summary>网格行数</summary>
-        public const int Rows = 4;
+        public const int Rows = 6;
 
         /// <summary>默认格子大小（像素）</summary>
         public const float DefaultCellSize = 80f;
@@ -206,5 +206,17 @@ public static class GameConst
 
         /// <summary>待部署区英雄槽位尺寸</summary>
         public static readonly Vector2 BenchSlotSize = new(76f, 56f);
+
+        /// <summary>待部署区槽位间距</summary>
+        public const float BenchSlotGap = 6f;
+
+        /// <summary>待部署区内边距</summary>
+        public const float BenchPadding = 6f;
+
+        /// <summary>待部署区标题行高度</summary>
+        public const float BenchTitleHeight = 20f;
+
+        /// <summary>待部署区英雄模型缩放比例</summary>
+        public const float BenchHeroScale = 0.5f;
     }
 }

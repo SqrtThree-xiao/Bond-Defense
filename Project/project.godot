@@ -21,9 +21,7 @@ config/run/flush_stdout_on_print=true
 
 window/size/viewport_width=900
 window/size/viewport_height=700
-window/size/resizable=true
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
 
 [dotnet]
 

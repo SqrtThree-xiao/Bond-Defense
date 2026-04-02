@@ -3,6 +3,20 @@ using Godot;
 /// <summary>
 /// 主场景入口脚本 - 以代码方式构建整个游戏场景树
 /// 支持窗口自适应布局，通过 UIManager 管理所有 UI 界面
+/// 
+/// 布局结构：
+/// ┌──────────────────────────────┐
+/// │          TopBar (48px)       │
+/// ├──────────────────┬───────────┤
+/// │                  │           │
+/// │   Battlefield    │  Synergy  │
+/// │   (9×6 网格)     │  Panel    │
+/// │                  │  (右侧)   │
+/// ├──────────────────┤           │
+/// │   Bench (待部署区)│           │
+/// ├──────────────────┴───────────┤
+/// │          Shop (110px)        │
+/// └──────────────────────────────┘
 /// </summary>
 public partial class Main : Node2D
 {
@@ -19,16 +33,9 @@ public partial class Main : Node2D
 	private Label _titleLabel;
 
 	// UI 配置表 ID 常量
-	private const int UI_TOP_BAR     = 1;
+	private const int UI_TOP_BAR      = 1;
 	private const int UI_SYNERGY_PANEL = 2;
-	private const int UI_BENCH       = 3;
-	private const int UI_SHOP        = 4;
-
-	// 布局常量
-	private const int TOP_BAR_HEIGHT = 48;
-	private const int SHOP_HEIGHT = 110;
-	private const int BENCH_HEIGHT = 80;
-	private const int RIGHT_PANEL_MIN_WIDTH = 180;
+	private const int UI_SHOP         = 4;
 
 	public override void _Ready()
 	{
@@ -61,19 +68,22 @@ public partial class Main : Node2D
 		_gameManager.Name = "GameManager";
 		AddChild(_gameManager);
 
-		// 4. 背景（放在最底层）
+		// 4. BenchUI（场景层 Node2D，位于战场下方）
+		_benchUI = new BenchUI();
+		_benchUI.Name = "BenchUI";
+		AddChild(_benchUI);
+
+		// 5. 背景（放在最底层）
 		BuildBackground();
 
-		// 5. UIManager（依赖 ConfigLoader，必须在 ConfigLoader 之后创建）
-		//    UIManager 会根据 UI 配置表的 ui_layer 自动创建 CanvasLayer
+		// 6. UIManager（依赖 ConfigLoader，必须在 ConfigLoader 之后创建）
 		_uiManager = new UIManager();
 		_uiManager.Name = "UIManager";
 		AddChild(_uiManager);
 
-		// 6. 通过 UIManager 加载所有 UI 界面（层级由配置表 ui_layer 字段控制）
+		// 7. 通过 UIManager 加载 UI 界面（不再加载 BenchUI，它已作为场景节点）
 		_topBar = (TopBarUI)_uiManager.LoadUI(UI_TOP_BAR, this);
 		_synergyPanel = (SynergyPanel)_uiManager.LoadUI(UI_SYNERGY_PANEL, this);
-		_benchUI = (BenchUI)_uiManager.LoadUI(UI_BENCH, this);
 		_shopUI = (ShopUI)_uiManager.LoadUI(UI_SHOP, this);
 	}
 
@@ -104,18 +114,8 @@ public partial class Main : Node2D
 
 	/// <summary>
 	/// 更新所有元素的布局（根据当前窗口大小）
-	/// 布局结构：
-	/// ┌──────────────────────────────────┐
-	/// │            TopBar (48px)          │
-	/// ├────────────────────┬─────────────┤
-	/// │                    │  Synergy     │
-	/// │    Battlefield      │  Panel       │
-	/// │                    │  (右侧)      │
-	/// ├────────────────────┤              │
-	/// │   Bench (80px)     │              │
-	/// ├────────────────────┴─────────────┤
-	/// │          Shop (110px)             │
-	/// └──────────────────────────────────┘
+	/// 战场占左侧主体区域，待部署区和羁绊面板在右侧
+	/// 商店在底部
 	/// </summary>
 	public void UpdateLayout()
 	{
@@ -123,8 +123,10 @@ public partial class Main : Node2D
 		float w = viewportSize.X;
 		float h = viewportSize.Y;
 
-		// 计算右侧面板宽度（最小180，最大不超过25%的宽度）
-		float rightPanelWidth = Mathf.Clamp(w * 0.22f, RIGHT_PANEL_MIN_WIDTH, 220f);
+		int topBarHeight = GameConst.Layout.TopBarHeight;
+		int shopHeight = GameConst.Layout.ShopHeight;
+		int rightPanelWidth = Mathf.Clamp((int)(w * GameConst.Layout.RightPanelWidthRatio),
+			GameConst.Layout.RightPanelMinWidth, GameConst.Layout.RightPanelMaxWidth);
 
 		// 背景
 		if (_background != null)
@@ -142,39 +144,44 @@ public partial class Main : Node2D
 		if (_topBar != null)
 		{
 			_topBar.Position = new Vector2(0, 0);
-			_topBar.Size = new Vector2(w, TOP_BAR_HEIGHT);
+			_topBar.Size = new Vector2(w, topBarHeight);
 		}
 
-		// 羁绊面板：右侧，从顶栏下方到窗口底部
-		if (_synergyPanel != null)
-		{
-			_synergyPanel.Position = new Vector2(w - rightPanelWidth, TOP_BAR_HEIGHT);
-			_synergyPanel.Size = new Vector2(rightPanelWidth, h - TOP_BAR_HEIGHT);
-		}
+		// 右侧区域宽度（羁绊面板，待部署区已移到棋盘下方）
+		float mainAreaWidth = w - rightPanelWidth;
+		float benchHeight = GameConst.Layout.BenchHeight;
+		float gameAreaHeight = h - topBarHeight - shopHeight - benchHeight;
+		gameAreaHeight = Mathf.Max(gameAreaHeight, 100); // 最小高度保护
 
-		// 战场：左侧区域，从顶栏下方到商店上方
+		// 战场：左侧主区域（从顶栏下方到待部署区上方）
 		if (_battlefield != null)
 		{
-			float bfWidth = w - rightPanelWidth;
-			float bfHeight = h - TOP_BAR_HEIGHT - SHOP_HEIGHT - BENCH_HEIGHT;
-			bfHeight = Mathf.Max(bfHeight, 100); // 最小高度保护
-			_battlefield.Position = new Vector2(0, TOP_BAR_HEIGHT);
-			_battlefield.UpdateLayout(new Vector2(bfWidth, bfHeight));
+			_battlefield.Position = new Vector2(0, topBarHeight);
+			_battlefield.UpdateLayout(new Vector2(mainAreaWidth, gameAreaHeight));
 		}
 
-		// 待部署区：左下，商店上方
+		// 待部署区：棋盘正下方，与棋盘同宽
 		if (_benchUI != null)
 		{
-			float benchWidth = w - rightPanelWidth;
-			_benchUI.Position = new Vector2(0, h - SHOP_HEIGHT - BENCH_HEIGHT);
-			_benchUI.Size = new Vector2(benchWidth, BENCH_HEIGHT);
+			_benchUI.UpdateLayout(
+				new Vector2(0, topBarHeight + gameAreaHeight),
+				new Vector2(mainAreaWidth, benchHeight)
+			);
+		}
+
+		// 羁绊面板：右侧，与战场+待部署区同高
+		if (_synergyPanel != null)
+		{
+			float rightHeight = gameAreaHeight + benchHeight;
+			_synergyPanel.Position = new Vector2(mainAreaWidth, topBarHeight);
+			_synergyPanel.Size = new Vector2(rightPanelWidth, rightHeight);
 		}
 
 		// 商店：底部全宽
 		if (_shopUI != null)
 		{
-			_shopUI.Position = new Vector2(0, h - SHOP_HEIGHT);
-			_shopUI.Size = new Vector2(w, SHOP_HEIGHT);
+			_shopUI.Position = new Vector2(0, h - shopHeight);
+			_shopUI.Size = new Vector2(w, shopHeight);
 		}
 	}
 }

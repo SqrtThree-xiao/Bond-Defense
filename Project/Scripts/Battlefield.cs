@@ -7,9 +7,9 @@ using System.Collections.Generic;
 public partial class Battlefield : Node2D
 {
     // 战场格子配置
-    [Export] public int GridCols { get; set; } = 7;
-    [Export] public int GridRows { get; set; } = 4;
-    [Export] public float CellSize { get; set; } = 80f;
+    [Export] public int GridCols { get; set; } = GameConst.Grid.Cols;
+    [Export] public int GridRows { get; set; } = GameConst.Grid.Rows;
+    [Export] public float CellSize { get; set; } = GameConst.Grid.DefaultCellSize;
 
     // 战场起始位置（左上角）
     [Export] public Vector2 GridOrigin { get; set; } = new Vector2(60f, 80f);
