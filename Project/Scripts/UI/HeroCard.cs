@@ -12,8 +12,12 @@ public partial class HeroCard : Button
     private Label _nameLabel;
     private Label _tagLabel;
     private Label _priceLabel;
+    private Label _soldOutLabel;
 
     public int SlotIndex { get; private set; } = -1;
+
+    /// <summary>是否已售罄</summary>
+    public bool IsSoldOut { get; private set; } = false;
 
     public override void _Ready()
     {
@@ -101,6 +105,48 @@ public partial class HeroCard : Button
         if (GetThemeStylebox("hover") is StyleBoxFlat hoverStyle)
         {
             hoverStyle.BorderColor = color;
+        }
+    }
+
+    /// <summary>
+    /// 设置售罄状态 - 灰化整体、禁用交互、显示"已售罄"覆盖
+    /// </summary>
+    public void SetSoldOut(bool soldOut)
+    {
+        IsSoldOut = soldOut;
+        Disabled = soldOut;
+        MouseDefaultCursorShape = soldOut ? CursorShape.Forbidden : CursorShape.PointingHand;
+
+        if (soldOut)
+        {
+            // 整体灰化
+            Modulate = new Color(0.4f, 0.4f, 0.4f, 0.7f);
+
+            // 售罄覆盖标签
+            if (_soldOutLabel == null)
+            {
+                _soldOutLabel = new Label();
+                _soldOutLabel.Name = "SoldOutLabel";
+                _soldOutLabel.Text = "已售罄";
+                _soldOutLabel.AddThemeColorOverride("font_color", new Color(1f, 0.3f, 0.3f, 0.9f));
+                _soldOutLabel.AddThemeFontSizeOverride("font_size", 12);
+                _soldOutLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                _soldOutLabel.VerticalAlignment = VerticalAlignment.Center;
+                _soldOutLabel.AnchorLeft = 0;
+                _soldOutLabel.AnchorTop = 0;
+                _soldOutLabel.AnchorRight = 1;
+                _soldOutLabel.AnchorBottom = 1;
+                AddChild(_soldOutLabel);
+            }
+            _soldOutLabel.Visible = true;
+        }
+        else
+        {
+            // 恢复正常
+            Modulate = Colors.White;
+
+            if (_soldOutLabel != null)
+                _soldOutLabel.Visible = false;
         }
     }
 }

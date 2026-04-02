@@ -27,6 +27,7 @@ public partial class ShopUI : Control
     {
         _gameManager = GetTree().Root.GetNode<Main>("Main").GetNode<GameManager>("GameManager");
         _gameManager.ShopRefreshed += RefreshDisplay;
+        _gameManager.ShopSlotSoldOut += OnShopSlotSoldOut;
         _gameManager.StateChanged += OnStateChanged;
 
         // 预加载卡牌预制场景
@@ -93,7 +94,7 @@ public partial class ShopUI : Control
     /// 从预制场景实例化英雄卡牌并绑定数据
     /// 注意：必须先 AddChild 再 SetData，否则 HeroCard._Ready 未执行导致子节点引用为 null
     /// </summary>
-    private HeroCard CreateHeroCard(HeroData data, int index)
+    private HeroCard CreateHeroCard(HeroData data, int index, bool soldOut)
     {
         var card = _heroCardScene.Instantiate<HeroCard>();
         int capturedIndex = index;
@@ -109,6 +110,11 @@ public partial class ShopUI : Control
             }
             _gameManager.BuyHero(capturedIndex);
         };
+
+        // 如果已经售罄，直接设置售罄状态
+        if (soldOut)
+            card.SetSoldOut(true);
+
         return card;
     }
 
@@ -133,20 +139,34 @@ public partial class ShopUI : Control
         foreach (var child in _slotsContainer.GetChildren())
             child.QueueFree();
 
-        var slots = _gameManager.GetShopSlots();
+        var slotList = _gameManager.GetShopSlotList();
         for (int i = 0; i < 5; i++)
         {
-            if (i < slots.Count)
+            if (i < slotList.Count)
             {
-                var heroCard = CreateHeroCard(slots[i], i);
+                var shopSlot = slotList[i];
+                var heroCard = CreateHeroCard(shopSlot.Data, i, shopSlot.Sold);
                 _slotsContainer.AddChild(heroCard);
                 // AddChild 后 _Ready 已执行，子节点引用已初始化，可以安全绑定数据
-                heroCard.SetData(slots[i], i);
+                heroCard.SetData(shopSlot.Data, i);
             }
             else
             {
                 _slotsContainer.AddChild(CreateEmptyCard());
             }
+        }
+    }
+
+    /// <summary>
+    /// 单个槽位售罄时，灰化对应卡片（无需重建整个商店）
+    /// </summary>
+    private void OnShopSlotSoldOut(int slotIndex)
+    {
+        var children = _slotsContainer.GetChildren();
+        if (slotIndex >= 0 && slotIndex < children.Count)
+        {
+            if (children[slotIndex] is HeroCard card)
+                card.SetSoldOut(true);
         }
     }
 

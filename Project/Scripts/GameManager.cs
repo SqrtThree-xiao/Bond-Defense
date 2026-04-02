@@ -25,9 +25,20 @@ public partial class GameManager : Node
     public IReadOnlyList<Hero> Bench => _bench;
 
     // ─────────────── 商店 ───────────────
-    private List<HeroData> _shopSlots = new();  // 当前商店5个槽
+    private readonly List<ShopSlot> _shopSlots = new();  // 当前商店5个槽
     private bool _shopLocked = false;
     private List<HeroData> _heroPool = new();  // 英雄池
+
+    /// <summary>
+    /// 商店槽位 - 包含商品数据和售罄状态
+    /// </summary>
+    public class ShopSlot
+    {
+        public HeroData Data;
+        public bool Sold;
+
+        public ShopSlot(HeroData data) { Data = data; Sold = false; }
+    }
 
     // ─────────────── 波次计时 ───────────────
     private float _spawnTimer = 0f;
@@ -40,6 +51,7 @@ public partial class GameManager : Node
     [Signal] public delegate void WaveChangedEventHandler(int wave, int maxWave);
     [Signal] public delegate void StateChangedEventHandler(int state);
     [Signal] public delegate void ShopRefreshedEventHandler();
+    [Signal] public delegate void ShopSlotSoldOutEventHandler(int slotIndex);
     [Signal] public delegate void BenchChangedEventHandler();
     [Signal] public delegate void MergeAvailableEventHandler(string heroName);
     [Signal] public delegate void GameOverEventHandler(bool win);
@@ -53,7 +65,6 @@ public partial class GameManager : Node
         _battlefield.EnemyReachedEnd += OnEnemyReachedEnd;
         _battlefield.EnemyKilled += OnEnemyKilled;
         _battlefield.HeroPlaced += OnHeroPlaced;
-        _battlefield.DragReturnedToBench += OnDragReturnedToBench;
 
         _synergyManager.SynergiesUpdated += OnSynergiesUpdated;
 
@@ -150,18 +161,29 @@ public partial class GameManager : Node
             SpendGold(refreshCost);
         }
 
+        // 重置所有槽位：重新随机生成，全部售罄状态归零
         _shopSlots.Clear();
         var pool = new List<HeroData>(_heroPool);
         for (int i = 0; i < 5 && pool.Count > 0; i++)
         {
             int idx = GD.RandRange(0, pool.Count - 1);
-            _shopSlots.Add(pool[idx]);
+            _shopSlots.Add(new ShopSlot(pool[idx]));
             pool.RemoveAt(idx);
         }
         EmitSignal(SignalName.ShopRefreshed);
     }
 
-    public List<HeroData> GetShopSlots() => new(_shopSlots);
+    /// <summary>获取商店槽位列表（只读）</summary>
+    public IReadOnlyList<ShopSlot> GetShopSlotList() => _shopSlots.AsReadOnly();
+
+    /// <summary>获取商店槽位数据（兼容旧代码）</summary>
+    public List<HeroData> GetShopSlots()
+    {
+        var result = new List<HeroData>();
+        foreach (var slot in _shopSlots)
+            if (!slot.Sold) result.Add(slot.Data);
+        return result;
+    }
 
     public void ToggleShopLock()
     {
@@ -174,13 +196,18 @@ public partial class GameManager : Node
     public bool BuyHero(int shopSlotIndex)
     {
         if (shopSlotIndex < 0 || shopSlotIndex >= _shopSlots.Count) return false;
+        if (_shopSlots[shopSlotIndex].Sold)
+        {
+            EmitSignal(SignalName.ShowMessage, "该商品已售罄！");
+            return false;
+        }
         if (_bench.Count >= 8)
         {
             EmitSignal(SignalName.ShowMessage, "待部署区已满！");
             return false;
         }
 
-        var heroData = _shopSlots[shopSlotIndex];
+        var heroData = _shopSlots[shopSlotIndex].Data;
         if (Gold < heroData.Price)
         {
             EmitSignal(SignalName.ShowMessage, "金币不足！");
@@ -188,7 +215,10 @@ public partial class GameManager : Node
         }
 
         SpendGold(heroData.Price);
-        _shopSlots.RemoveAt(shopSlotIndex);
+
+        // 标记售罄（不移除槽位，保留位置显示售罄状态）
+        _shopSlots[shopSlotIndex].Sold = true;
+        EmitSignal(SignalName.ShopSlotSoldOut, shopSlotIndex);
 
         // 创建英雄并加入待部署区
         var hero = CreateHeroInstance(heroData);
@@ -213,8 +243,6 @@ public partial class GameManager : Node
             _heroStorage = new Node();
             _heroStorage.Name = "HeroStorage";
             GetParent().AddChild(_heroStorage);
-            // 让 Battlefield 知道 HeroStorage 的位置，用于归还拖拽失败的英雄
-            _battlefield.HeroStorage = _heroStorage;
         }
         _heroStorage.AddChild(hero);
         return hero;
@@ -247,17 +275,16 @@ public partial class GameManager : Node
         EmitSignal(SignalName.ShowMessage, $"已出售 {hero.Data.HeroName}，获得 {price} 金币");
     }
 
-    public bool MoveFromBenchToField(Hero hero, int col, int row)
+    /// <summary>
+    /// 交换待部署区中两个位置的英雄
+    /// </summary>
+    public void SwapBenchHeroes(int indexA, int indexB)
     {
-        if (!_bench.Contains(hero)) return false;
-        bool placed = _battlefield.PlaceHero(hero, col, row);
-        if (placed)
-        {
-            _bench.Remove(hero);
-            EmitSignal(SignalName.BenchChanged);
-            UpdateSynergies();
-        }
-        return placed;
+        if (indexA < 0 || indexA >= _bench.Count) return;
+        if (indexB < 0 || indexB >= _bench.Count) return;
+        if (indexA == indexB) return;
+        (_bench[indexA], _bench[indexB]) = (_bench[indexB], _bench[indexA]);
+        EmitSignal(SignalName.BenchChanged);
     }
 
     // ─────────────────────── 升星合成 ───────────────────────
@@ -422,12 +449,6 @@ public partial class GameManager : Node
             EmitSignal(SignalName.BenchChanged);
         }
         UpdateSynergies();
-    }
-
-    private void OnDragReturnedToBench()
-    {
-        // 从 bench 拖出但放置失败，bench 列表未改变，只需刷新 UI
-        EmitSignal(SignalName.BenchChanged);
     }
 
     private void OnSynergiesUpdated()
