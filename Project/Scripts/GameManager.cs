@@ -24,6 +24,9 @@ public partial class GameManager : Node
     private List<Hero> _bench = new();  // 待部署区中的英雄
     public IReadOnlyList<Hero> Bench => _bench;
 
+    /// <summary>检查 bench 中是否包含满足条件的英雄</summary>
+    public bool BenchAny(System.Predicate<Hero> match) => _bench.Exists(match);
+
     // ─────────────── 商店 ───────────────
     private readonly List<ShopSlot> _shopSlots = new();  // 当前商店5个槽
     private bool _shopLocked = false;
@@ -284,6 +287,37 @@ public partial class GameManager : Node
         if (indexB < 0 || indexB >= _bench.Count) return;
         if (indexA == indexB) return;
         (_bench[indexA], _bench[indexB]) = (_bench[indexB], _bench[indexA]);
+        EmitSignal(SignalName.BenchChanged);
+    }
+
+    /// <summary>
+    /// 从战场移除英雄并放回待部署区（战斗准备阶段）
+    /// </summary>
+    public bool RemoveHeroFromBattle(Hero hero)
+    {
+        if (CurrentState != GameState.Prepare) return false;
+        if (_bench.Count >= GameConst.Game.BenchCapacity) return false;
+
+        var cell = _battlefield.FindHeroCell(hero);
+        if (cell == null) return false;
+
+        _battlefield.RemoveHeroFromCell(cell.Value.X, cell.Value.Y);
+        _bench.Add(hero);
+        UpdateSynergies();
+        EmitSignal(SignalName.BenchChanged);
+        return true;
+    }
+
+    /// <summary>
+    /// 强制将英雄加入待部署区（跳过 FindHeroCell 检查）。
+    /// 用于拖拽归还场景：英雄已从 grid 移除但尚未加入 bench 列表。
+    /// </summary>
+    public void ForceAddToBench(Hero hero)
+    {
+        if (_bench.Contains(hero)) return;
+        if (_bench.Count >= GameConst.Game.BenchCapacity) return;
+        _bench.Add(hero);
+        UpdateSynergies();
         EmitSignal(SignalName.BenchChanged);
     }
 

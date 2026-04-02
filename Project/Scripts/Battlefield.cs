@@ -175,6 +175,29 @@ public partial class Battlefield : Node2D
         return IsValidCell(col, row) && _grid[col, row] == null;
     }
 
+    /// <summary>
+    /// 根据全局坐标获取格子上的英雄（用于拖拽启动检测）
+    /// 返回 null 表示该位置没有英雄
+    /// </summary>
+    public Hero GetHeroAtWorldPos(Vector2 globalPos)
+    {
+        var cell = WorldToGrid(globalPos);
+        if (!IsValidCell(cell.X, cell.Y)) return null;
+        return _grid[cell.X, cell.Y];
+    }
+
+    /// <summary>
+    /// 根据英雄查找其所在格子坐标，返回 null 表示不在战场上
+    /// </summary>
+    public Vector2I? FindHeroCell(Hero hero)
+    {
+        for (int c = 0; c < GridCols; c++)
+            for (int r = 0; r < GridRows; r++)
+                if (_grid[c, r] == hero)
+                    return new Vector2I(c, r);
+        return null;
+    }
+
     // ─────────────────────── 英雄放置 ───────────────────────
 
     /// <summary>
@@ -236,23 +259,56 @@ public partial class Battlefield : Node2D
 
     // ─────────────────────── 格子高亮 ───────────────────────
 
-    public void HighlightCell(int col, int row, bool highlighted)
+    /// <summary>
+    /// 高亮类型：用于拖拽反馈
+    /// </summary>
+    public enum HighlightType
+    {
+        None,       // 恢复默认
+        Valid,      // 绿色：可放置（空格）
+        Swap,       // 黄色：可交换（有英雄）
+        Invalid     // 红色：不可放置
+    }
+
+    /// <summary>
+    /// 高亮单个格子（支持多种高亮类型）
+    /// </summary>
+    public void HighlightCell(int col, int row, HighlightType type)
     {
         if (!IsValidCell(col, row)) return;
         var cell = _cellVisuals[col, row];
-        if (highlighted)
-            cell.Color = new Color(0.3f, 0.6f, 0.4f, 0.8f);
-        else if (_grid[col, row] != null)
-            cell.Color = new Color(0.2f, 0.3f, 0.5f, 0.8f);
-        else
-            cell.Color = new Color(0.15f, 0.25f, 0.35f, 0.7f);
+        switch (type)
+        {
+            case HighlightType.Valid:
+                cell.Color = new Color(0.2f, 0.7f, 0.3f, 0.85f);
+                break;
+            case HighlightType.Swap:
+                cell.Color = new Color(0.8f, 0.75f, 0.2f, 0.85f);
+                break;
+            case HighlightType.Invalid:
+                cell.Color = new Color(0.8f, 0.2f, 0.2f, 0.85f);
+                break;
+            default:
+                // 恢复默认
+                if (_grid[col, row] != null)
+                    cell.Color = new Color(0.2f, 0.3f, 0.5f, 0.8f);
+                else
+                    cell.Color = new Color(0.15f, 0.25f, 0.35f, 0.7f);
+                break;
+        }
+    }
+
+    /// <summary>旧接口兼容</summary>
+    public void HighlightCell(int col, int row, bool highlighted)
+    {
+        HighlightCell(col, row, highlighted ? HighlightType.Valid : HighlightType.None);
     }
 
     public void ClearAllHighlights()
     {
         for (int c = 0; c < GridCols; c++)
             for (int r = 0; r < GridRows; r++)
-                HighlightCell(c, r, false);
+                HighlightCell(c, r, HighlightType.None);
     }
 
     // ─────────────────────── 敌人生成 ───────────────────────
