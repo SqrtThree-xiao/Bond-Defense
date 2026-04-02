@@ -28,6 +28,7 @@ public class SynergyConfig
     public string Tag          { get; set; } = "";
     public int    Tier1        { get; set; }
     public int    Tier2        { get; set; }
+    public string ColorHex     { get; set; } = "";       // UI 展示颜色，如 "e6b34d"
     public List<string> Descriptions { get; set; } = new();
     public List<string> AtkBonus     { get; set; } = new();
     public List<string> SpdBonus     { get; set; } = new();

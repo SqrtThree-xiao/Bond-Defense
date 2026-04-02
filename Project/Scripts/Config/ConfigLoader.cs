@@ -159,11 +159,12 @@ public partial class ConfigLoader : Node
     {
         var cfg = new SynergyConfig
         {
-            Id    = (int)row["id"].AsInt64(),
-            Name  = row["name"].AsString(),
-            Tag   = row["tag"].AsString(),
-            Tier1 = (int)row["tier1"].AsInt64(),
-            Tier2 = (int)row["tier2"].AsInt64(),
+            Id       = (int)row["id"].AsInt64(),
+            Name     = row["name"].AsString(),
+            Tag      = row["tag"].AsString(),
+            Tier1    = (int)row["tier1"].AsInt64(),
+            Tier2    = (int)row["tier2"].AsInt64(),
+            ColorHex = row.ContainsKey("color") ? row["color"].AsString() : "",
         };
 
         foreach (var v in row["descriptions"].AsGodotArray()) cfg.Descriptions.Add(v.AsString());
