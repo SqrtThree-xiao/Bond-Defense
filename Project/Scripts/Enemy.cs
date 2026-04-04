@@ -16,8 +16,12 @@ public partial class Enemy : Node2D
     private Vector2[] _path;
     private int _pathIndex = 0;
     private Polygon2D _body;
-    private ColorRect _hpBar;
-    private ColorRect _hpBarBg;
+
+    // HP条参数（用于 _Draw 绘制，避免随 Rotation 旋转）
+    private float _hpBarWidth = 36f;
+    private const float HpBarHeight = 5f;
+    private const float HpBarOffsetY = -28f;  // 菱形顶部上方
+    private float _hpRatio = 1f;
 
     [Signal]
     public delegate void EnemyDiedEventHandler(Enemy enemy, bool reachedEnd);
@@ -47,8 +51,9 @@ public partial class Enemy : Node2D
         if (gridPath == null || gridPath.Length == 0) return;
 
         // 格子坐标 → 世界坐标（格子中心点）
+        // 从 tileMap 的 TileSet 获取当前 tile 大小（与战场动态大小一致）
+        float cs = tileMap.TileSet != null ? tileMap.TileSet.TileSize.X : GameConst.Grid.DefaultCellSize;
         var worldPath = new Vector2[gridPath.Length];
-        float cs = GameConst.Grid.DefaultCellSize;
         for (int i = 0; i < gridPath.Length; i++)
         {
             var topLeft = tileMap.MapToLocal(gridPath[i]);
@@ -70,19 +75,7 @@ public partial class Enemy : Node2D
         };
         AddChild(_body);
 
-        // HP条背景
-        _hpBarBg = new ColorRect();
-        _hpBarBg.Color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
-        _hpBarBg.Position = new Vector2(-18, -28);
-        _hpBarBg.Size = new Vector2(36, 5);
-        AddChild(_hpBarBg);
-
-        // HP条
-        _hpBar = new ColorRect();
-        _hpBar.Color = new Color(0.2f, 0.9f, 0.2f);
-        _hpBar.Position = new Vector2(-18, -28);
-        _hpBar.Size = new Vector2(36, 5);
-        AddChild(_hpBar);
+        // HP 条改为在 _Draw 中绘制，不创建子节点（避免随 Rotation 旋转）
     }
 
     public override void _Process(double delta)
@@ -139,12 +132,28 @@ public partial class Enemy : Node2D
 
     private void UpdateHpBar()
     {
-        if (_hpBar == null) return;
-        float ratio = Mathf.Max(0f, CurrentHp / MaxHp);
-        _hpBar.Size = new Vector2(36 * ratio, 5);
-        _hpBar.Color = ratio > 0.5f ? new Color(0.2f, 0.9f, 0.2f) :
-                       ratio > 0.25f ? new Color(0.9f, 0.9f, 0.2f) :
-                       new Color(0.9f, 0.2f, 0.2f);
+        _hpRatio = Mathf.Max(0f, CurrentHp / MaxHp);
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        // 绘制 HP 条（在局部空间绘制，不受 Rotation 影响，始终水平）
+        if (_hpRatio >= 0f)
+        {
+            float barX = -_hpBarWidth / 2f;
+            float barY = HpBarOffsetY;
+
+            // 背景
+            DrawRect(new Rect2(barX, barY, _hpBarWidth, HpBarHeight),
+                new Color(0.2f, 0.2f, 0.2f, 0.8f));
+
+            // 前景
+            Color hpColor = _hpRatio > 0.5f ? new Color(0.2f, 0.9f, 0.2f) :
+                           _hpRatio > 0.25f ? new Color(0.9f, 0.9f, 0.2f) :
+                           new Color(0.9f, 0.2f, 0.2f);
+            DrawRect(new Rect2(barX, barY, _hpBarWidth * _hpRatio, HpBarHeight), hpColor);
+        }
     }
 
     private void Die(bool reachedEnd)

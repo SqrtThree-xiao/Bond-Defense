@@ -14,6 +14,9 @@ public partial class Battlefield : Node2D
     // 战场尺寸（由外部设置）
     public Vector2 Size { get; set; } = new Vector2(560f, 320f);
 
+    // 当前动态计算的格子大小（由 BuildTileMap 设置）
+    private float _currentCellSize = GameConst.Grid.DefaultCellSize;
+
     // 敌人路径（格子坐标数组）
     private Vector2I[] _enemyPath;
 
@@ -158,6 +161,7 @@ public partial class Battlefield : Node2D
         float cellW = Size.X / GridCols;
         float cellH = Size.Y / GridRows;
         float cellSize = Mathf.Min(cellW, cellH);
+        _currentCellSize = cellSize; // 记录当前格子大小
         // 更新 TileSet tile_size
         if (GridLayer.TileSet != null)
             GridLayer.TileSet.TileSize = new Vector2I((int)cellSize, (int)cellSize);
@@ -206,14 +210,16 @@ public partial class Battlefield : Node2D
 
     /// <summary>
     /// 格子坐标 → 世界坐标（中心点）
+    /// 直接基于 _currentCellSize 计算，不依赖 MapToLocal
     /// </summary>
     public Vector2 GridToWorld(int col, int row)
     {
-        // TileMapLayer.MapToLocal 返回格子左上角世界坐标
-        var topLeft = GridLayer.MapToLocal(new Vector2I(col, row));
-        // 加上半个格子偏移到中心
-        float cs = GameConst.Grid.DefaultCellSize;
-        return topLeft + new Vector2(cs / 2f, cs / 2f);
+        // 从战场 Position(0,0) 开始，每个格子 _currentCellSize 像素
+        // 格子中心 = 左上角 + 半格
+        return new Vector2(
+            col * _currentCellSize + _currentCellSize / 2f,
+            row * _currentCellSize + _currentCellSize / 2f
+        );
     }
 
     /// <summary>
@@ -425,10 +431,23 @@ public partial class Battlefield : Node2D
         var pts = new Vector2[_enemyPath.Length];
         for (int i = 0; i < _enemyPath.Length; i++)
         {
-            var topLeft = GridLayer.MapToLocal(_enemyPath[i]);
-            pts[i] = topLeft + new Vector2(GameConst.Grid.DefaultCellSize / 2f,
-                                            GameConst.Grid.DefaultCellSize / 2f);
+            // 直接基于格子坐标和 _currentCellSize 计算世界坐标
+            pts[i] = new Vector2(
+                _enemyPath[i].X * _currentCellSize + _currentCellSize / 2f,
+                _enemyPath[i].Y * _currentCellSize + _currentCellSize / 2f
+            );
         }
         return pts;
+    }
+
+    /// <summary>
+    /// 格子坐标 → 世界坐标（供外部使用，如 Enemy.SetGridPath）
+    /// </summary>
+    public Vector2 GridCellToWorld(int col, int row)
+    {
+        return new Vector2(
+            col * _currentCellSize + _currentCellSize / 2f,
+            row * _currentCellSize + _currentCellSize / 2f
+        );
     }
 }
