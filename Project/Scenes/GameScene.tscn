@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://cgwjd5tu8i74m"]
+
+[ext_resource type="Script" path="res://Scripts/Battlefield.cs" id="1"]
+
+[node name="Battlefield" type="Node2D" unique_name_signal=true]
+script = ExtResource("1")
+
+[node name="GridLayer" type="TileMapLayer" parent="." unique_name_signal=true]
+
+[node name="HighlightLayer" type="TileMapLayer" parent="." unique_name_signal=true]
+z_index = 1

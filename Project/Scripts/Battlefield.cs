@@ -3,36 +3,36 @@ using System.Collections.Generic;
 
 /// <summary>
 /// 战场管理节点 - 管理格子、英雄放置、敌人生成和路径
+/// 使用 TileMapLayer 实现棋盘渲染，支持格子高亮
 /// </summary>
 public partial class Battlefield : Node2D
 {
     // 战场格子配置
     [Export] public int GridCols { get; set; } = GameConst.Grid.Cols;
     [Export] public int GridRows { get; set; } = GameConst.Grid.Rows;
-    [Export] public float CellSize { get; set; } = GameConst.Grid.DefaultCellSize;
 
-    // 战场起始位置（左上角）
-    [Export] public Vector2 GridOrigin { get; set; } = new Vector2(60f, 80f);
-    
     // 战场尺寸（由外部设置）
-    public Vector2 Size { get; set; } = new Vector2(560f, 320f); // 默认值：7*80, 4*80
+    public Vector2 Size { get; set; } = new Vector2(560f, 320f);
 
-    // 敌人路径（从左到右穿越战场）
-    private Vector2[] _enemyPath;
+    // 敌人路径（格子坐标数组）
+    private Vector2I[] _enemyPath;
 
     // 格子状态：null=空, Hero=有英雄
     private Hero[,] _grid;
-    // 格子视觉节点
-    private ColorRect[,] _cellVisuals;
+
+    // TileMapLayer 引用（由 _Ready() 内部查找，或由外部注入）
+    public TileMapLayer GridLayer { get; set; }
+    public TileMapLayer HighlightLayer { get; set; }
 
     // 活跃敌人列表
     public List<Enemy> ActiveEnemies { get; private set; } = new();
 
-    // 敌人预制体场景
-    private PackedScene _enemyScene;
-    
-    // 路径可视化
-    private Line2D _pathLine;
+    // TileSet source index 常量
+    private const int TILE_EMPTY     = 0;
+    private const int TILE_OCCUPIED = 1;
+    private const int TILE_VALID   = 2;
+    private const int TILE_SWAP     = 3;
+    private const int TILE_INVALID  = 4;
 
     [Signal]
     public delegate void HeroPlacedEventHandler(Hero hero, int col, int row);
@@ -46,87 +46,135 @@ public partial class Battlefield : Node2D
     public override void _Ready()
     {
         AddToGroup("battlefield");
-
         _grid = new Hero[GridCols, GridRows];
-        _cellVisuals = new ColorRect[GridCols, GridRows];
-        
-        // 初始化路径可视化
-        _pathLine = new Line2D();
-        _pathLine.Width = 8f;
-        _pathLine.DefaultColor = new Color(0.8f, 0.3f, 0.1f, 0.4f);
-        AddChild(_pathLine);
 
-        // 初始化布局（会在外部调用UpdateLayout）
+        // 优先从场景子节点中查找 TileMapLayer
+        GridLayer = GetNodeOrNull<TileMapLayer>("GridLayer");
+        HighlightLayer = GetNodeOrNull<TileMapLayer>("HighlightLayer");
+
+        // 找不到时才代码创建
+        if (GridLayer == null)
+        {
+            GridLayer = new TileMapLayer();
+            GridLayer.Name = "GridLayer";
+            AddChild(GridLayer);
+        }
+        if (HighlightLayer == null)
+        {
+            HighlightLayer = new TileMapLayer();
+            HighlightLayer.Name = "HighlightLayer";
+            HighlightLayer.ZIndex = 1;
+            AddChild(HighlightLayer);
+        }
+
+        // 初始化 TileSet
+        _InitializeTileSet();
     }
+
+    /// <summary>
+    /// 初始化 TileSet：创建 5 种 tile（AtlasTile 风格）
+    /// tile_size = 80×80，颜色直接画在 atlas texture 上
+    /// </summary>
+    private void _InitializeTileSet()
+    {
+        var ts = new TileSet();
+        int tileSize = (int)GameConst.Grid.DefaultCellSize; // 80
+        ts.TileSize = new Vector2I(tileSize, tileSize);
+
+        _AddSolidTile(ts, TILE_EMPTY,     new Color(0.15f, 0.25f, 0.35f, 0.7f),  tileSize);
+        _AddSolidTile(ts, TILE_OCCUPIED, new Color(0.2f,  0.3f,  0.5f,  0.85f), tileSize);
+        _AddSolidTile(ts, TILE_VALID,    new Color(0.2f,  0.7f,  0.3f,  0.85f), tileSize);
+        _AddSolidTile(ts, TILE_SWAP,     new Color(0.8f,  0.75f, 0.2f,  0.85f), tileSize);
+        _AddSolidTile(ts, TILE_INVALID,   new Color(0.8f,  0.2f,  0.2f,  0.85f), tileSize);
+
+        GridLayer.TileSet = ts;
+        HighlightLayer.TileSet = ts;
+    }
+
+    /// <summary>
+    /// 向 TileSet 添加一个纯色 AtlasTile（用 ImageTexture 填充纯色）
+    /// </summary>
+    private void _AddSolidTile(TileSet ts, int sourceId, Color color, int size)
+    {
+        // Image.CreateEmpty 是推荐 API
+        var img = Image.CreateEmpty(size, size, true, Image.Format.Rgba8);
+        img.Fill(color);
+        var tex = ImageTexture.CreateFromImage(img);
+
+        var source = new TileSetAtlasSource();
+        source.Texture = tex;
+        source.Margins = new Vector2I(0, 0);
+        source.Separation = new Vector2I(0, 0);
+        source.TextureRegionSize = new Vector2I(size, size);
+        source.UseTexturePadding = false;
+
+        // 在 atlas 中创建 1×1 的 tile（位置 0,0）
+        Vector2I tilePos = new Vector2I(0, 0);
+        source.CreateTile(tilePos);
+
+        // 该 tile 会在 atlas 位置 (0,0) 处显示整张纯色纹理
+        // TileMapLayer.SetCell 时指定 atlas_coord=(0,0) 即可
+
+        ts.AddSource(source, sourceId);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  布局构建
+    // ═══════════════════════════════════════════════════════
 
     private void BuildPath()
     {
-        // 敌人路径：从左侧入场，蛇形穿越，从右侧离开
-        var pts = new List<Vector2>();
-        float startX = GridOrigin.X - 60f;
-        float endX = GridOrigin.X + GridCols * CellSize + 60f;
-        float midY = GridOrigin.Y + (GridRows / 2f) * CellSize;
+        // 敌人路径：基于格子坐标
+        // 中间行 row = GridRows / 2（向下取整）
+        int midRow = GridRows / 2;
+        var pts = new List<Vector2I>();
 
-        // 简单直线路径（穿越战场中央）
-        pts.Add(new Vector2(startX, midY));
-        pts.Add(new Vector2(GridOrigin.X + GridCols * CellSize / 3, midY));
-        pts.Add(new Vector2(GridOrigin.X + GridCols * CellSize * 2 / 3, midY));
-        pts.Add(new Vector2(endX, midY));
+        // 起始：棋盘左侧边界外一格
+        pts.Add(new Vector2I(-1, midRow));
+        // 穿越棋盘的 3 个均匀分布点
+        pts.Add(new Vector2I(GridCols / 3,     midRow));
+        pts.Add(new Vector2I(GridCols * 2 / 3, midRow));
+        // 终点：棋盘右侧边界外一格
+        pts.Add(new Vector2I(GridCols, midRow));
+
         _enemyPath = pts.ToArray();
-        
-        // 更新路径可视化
-        DrawPathVisual();
+
+        // 路径可视化（用 Line2D，格子坐标转世界坐标）
+        _UpdatePathVisual();
     }
 
-    private void BuildGridVisuals()
+    private void _UpdatePathVisual()
     {
-        // 清除旧的格子视觉
-        foreach (var cell in _cellVisuals)
-        {
-            if (cell != null && IsInstanceValid(cell))
-                cell.QueueFree();
-        }
-        
-        _cellVisuals = new ColorRect[GridCols, GridRows];
+        // 延迟到 UpdateLayout 后由 GridLayer 坐标系统确定
+    }
 
-        // 计算格子大小（根据可用空间）
-        float availableWidth = Size.X;
-        float availableHeight = Size.Y;
-        float cellWidth = availableWidth / GridCols;
-        float cellHeight = availableHeight / GridRows;
-        CellSize = Mathf.Min(cellWidth, cellHeight);
-        
-        // 计算起始位置（居中）
-        float totalWidth = GridCols * CellSize;
-        float totalHeight = GridRows * CellSize;
-        GridOrigin = new Vector2(
-            (availableWidth - totalWidth) / 2,
-            (availableHeight - totalHeight) / 2
-        );
+    /// <summary>
+    /// 构建 TileMap 格子背景
+    /// </summary>
+    public void BuildTileMap()
+    {
+        GridLayer.Clear();
+        // 计算 CellSize（动态适配可用空间）
+        float cellW = Size.X / GridCols;
+        float cellH = Size.Y / GridRows;
+        float cellSize = Mathf.Min(cellW, cellH);
+        // 更新 TileSet tile_size
+        if (GridLayer.TileSet != null)
+            GridLayer.TileSet.TileSize = new Vector2I((int)cellSize, (int)cellSize);
+        if (HighlightLayer.TileSet != null)
+            HighlightLayer.TileSet.TileSize = new Vector2I((int)cellSize, (int)cellSize);
 
+        // 遍历所有格子，设置背景 tile
         for (int col = 0; col < GridCols; col++)
         {
             for (int row = 0; row < GridRows; row++)
             {
-                var cell = new ColorRect();
-                cell.Size = new Vector2(CellSize - 4, CellSize - 4);
-                cell.Position = GridOrigin + new Vector2(col * CellSize + 2, row * CellSize + 2);
-                cell.Color = new Color(0.15f, 0.25f, 0.35f, 0.7f);
-
-                AddChild(cell);
-                _cellVisuals[col, row] = cell;
+                GridLayer.SetCell(
+                    new Vector2I(col, row),
+                    0, // source_id = TILE_EMPTY
+                    new Vector2I(0, 0)
+                );
             }
-        }
-    }
-
-    private void DrawPathVisual()
-    {
-        if (_enemyPath == null || _enemyPath.Length < 2) return;
-        
-        _pathLine.ClearPoints();
-        foreach (var pt in _enemyPath)
-        {
-            _pathLine.AddPoint(pt);
         }
     }
 
@@ -136,9 +184,9 @@ public partial class Battlefield : Node2D
     public void UpdateLayout(Vector2 newSize)
     {
         Size = newSize;
-        BuildGridVisuals();
+        BuildTileMap();
         BuildPath();
-        
+
         // 重新定位已有英雄
         for (int c = 0; c < GridCols; c++)
         {
@@ -152,17 +200,28 @@ public partial class Battlefield : Node2D
         }
     }
 
-    // ─────────────────────── 坐标工具 ───────────────────────
+    // ═══════════════════════════════════════════════════════
+    //  坐标工具
+    // ═══════════════════════════════════════════════════════
 
+    /// <summary>
+    /// 格子坐标 → 世界坐标（中心点）
+    /// </summary>
     public Vector2 GridToWorld(int col, int row)
     {
-        return GridOrigin + new Vector2(col * CellSize + CellSize / 2, row * CellSize + CellSize / 2);
+        // TileMapLayer.MapToLocal 返回格子左上角世界坐标
+        var topLeft = GridLayer.MapToLocal(new Vector2I(col, row));
+        // 加上半个格子偏移到中心
+        float cs = GameConst.Grid.DefaultCellSize;
+        return topLeft + new Vector2(cs / 2f, cs / 2f);
     }
 
+    /// <summary>
+    /// 世界坐标 → 格子坐标
+    /// </summary>
     public Vector2I WorldToGrid(Vector2 world)
     {
-        var local = world - GridOrigin;
-        return new Vector2I((int)(local.X / CellSize), (int)(local.Y / CellSize));
+        return GridLayer.LocalToMap(GridLayer.ToLocal(world));
     }
 
     public bool IsValidCell(int col, int row)
@@ -177,7 +236,6 @@ public partial class Battlefield : Node2D
 
     /// <summary>
     /// 根据全局坐标获取格子上的英雄（用于拖拽启动检测）
-    /// 返回 null 表示该位置没有英雄
     /// </summary>
     public Hero GetHeroAtWorldPos(Vector2 globalPos)
     {
@@ -187,7 +245,7 @@ public partial class Battlefield : Node2D
     }
 
     /// <summary>
-    /// 根据英雄查找其所在格子坐标，返回 null 表示不在战场上
+    /// 根据英雄查找其所在格子坐标
     /// </summary>
     public Vector2I? FindHeroCell(Hero hero)
     {
@@ -198,11 +256,10 @@ public partial class Battlefield : Node2D
         return null;
     }
 
-    // ─────────────────────── 英雄放置 ───────────────────────
+    // ═══════════════════════════════════════════════════════
+    //  英雄放置
+    // ═══════════════════════════════════════════════════════
 
-    /// <summary>
-    /// 在格子放置英雄
-    /// </summary>
     public bool PlaceHero(Hero hero, int col, int row)
     {
         if (!IsCellEmpty(col, row)) return false;
@@ -212,7 +269,9 @@ public partial class Battlefield : Node2D
         AddChild(hero);
         hero.GlobalPosition = GridToWorld(col, row);
 
-        HighlightCell(col, row, false);
+        // 更新格子 tile 为 occupied
+        GridLayer.SetCell(new Vector2I(col, row), TILE_OCCUPIED, new Vector2I(0, 0));
+        ClearHighlight(col, row);
         EmitSignal(SignalName.HeroPlaced, hero, col, row);
         return true;
     }
@@ -225,7 +284,10 @@ public partial class Battlefield : Node2D
         if (!IsValidCell(col, row) || _grid[col, row] == null) return null;
         var hero = _grid[col, row];
         _grid[col, row] = null;
-        HighlightCell(col, row, false);
+
+        // 恢复格子 tile 为 empty
+        GridLayer.SetCell(new Vector2I(col, row), TILE_EMPTY, new Vector2I(0, 0));
+        ClearHighlight(col, row);
         EmitSignal(SignalName.HeroRemoved, hero);
         return hero;
     }
@@ -242,6 +304,10 @@ public partial class Battlefield : Node2D
         _grid[col2, row2] = h1;
         if (h1 != null) h1.GlobalPosition = GridToWorld(col2, row2);
         if (h2 != null) h2.GlobalPosition = GridToWorld(col1, row1);
+
+        // 更新 tile 状态
+        GridLayer.SetCell(new Vector2I(col1, row1), h2 != null ? TILE_OCCUPIED : TILE_EMPTY, new Vector2I(0, 0));
+        GridLayer.SetCell(new Vector2I(col2, row2), h1 != null ? TILE_OCCUPIED : TILE_EMPTY, new Vector2I(0, 0));
     }
 
     /// <summary>
@@ -257,61 +323,72 @@ public partial class Battlefield : Node2D
         return list;
     }
 
-    // ─────────────────────── 格子高亮 ───────────────────────
+    // ═══════════════════════════════════════════════════════
+    //  格子高亮
+    // ═══════════════════════════════════════════════════════
 
     /// <summary>
-    /// 高亮类型：用于拖拽反馈
+    /// 高亮类型
     /// </summary>
     public enum HighlightType
     {
-        None,       // 恢复默认
-        Valid,      // 绿色：可放置（空格）
-        Swap,       // 黄色：可交换（有英雄）
-        Invalid     // 红色：不可放置
+        None,
+        Valid,
+        Swap,
+        Invalid
     }
 
     /// <summary>
-    /// 高亮单个格子（支持多种高亮类型）
+    /// 高亮单个格子（使用 HighlightLayer 覆盖）
     /// </summary>
     public void HighlightCell(int col, int row, HighlightType type)
     {
         if (!IsValidCell(col, row)) return;
-        var cell = _cellVisuals[col, row];
-        switch (type)
+        var coord = new Vector2I(col, row);
+
+        if (type == HighlightType.None)
         {
-            case HighlightType.Valid:
-                cell.Color = new Color(0.2f, 0.7f, 0.3f, 0.85f);
-                break;
-            case HighlightType.Swap:
-                cell.Color = new Color(0.8f, 0.75f, 0.2f, 0.85f);
-                break;
-            case HighlightType.Invalid:
-                cell.Color = new Color(0.8f, 0.2f, 0.2f, 0.85f);
-                break;
-            default:
-                // 恢复默认
-                if (_grid[col, row] != null)
-                    cell.Color = new Color(0.2f, 0.3f, 0.5f, 0.8f);
-                else
-                    cell.Color = new Color(0.15f, 0.25f, 0.35f, 0.7f);
-                break;
+            HighlightLayer.EraseCell(coord);
+        }
+        else
+        {
+            int tileId = type switch
+            {
+                HighlightType.Valid   => TILE_VALID,
+                HighlightType.Swap    => TILE_SWAP,
+                HighlightType.Invalid => TILE_INVALID,
+                _ => -1
+            };
+            if (tileId >= 0)
+                HighlightLayer.SetCell(coord, tileId, new Vector2I(0, 0));
         }
     }
 
-    /// <summary>旧接口兼容</summary>
+    /// <summary>
+    /// 高亮单个格子（兼容旧接口）
+    /// </summary>
     public void HighlightCell(int col, int row, bool highlighted)
     {
         HighlightCell(col, row, highlighted ? HighlightType.Valid : HighlightType.None);
     }
 
-    public void ClearAllHighlights()
+    /// <summary>
+    /// 清除单个格子高亮
+    /// </summary>
+    public void ClearHighlight(int col, int row)
     {
-        for (int c = 0; c < GridCols; c++)
-            for (int r = 0; r < GridRows; r++)
-                HighlightCell(c, r, HighlightType.None);
+        if (!IsValidCell(col, row)) return;
+        HighlightLayer.EraseCell(new Vector2I(col, row));
     }
 
-    // ─────────────────────── 敌人生成 ───────────────────────
+    public void ClearAllHighlights()
+    {
+        HighlightLayer.Clear();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  敌人生成
+    // ═══════════════════════════════════════════════════════
 
     public void SpawnEnemy(float hp, float speed, int reward)
     {
@@ -321,7 +398,7 @@ public partial class Battlefield : Node2D
         enemy.Reward = reward;
         enemy.EnemyDied += OnEnemyDied;
         AddChild(enemy);
-        enemy.SetPath(_enemyPath);
+        enemy.SetGridPath(_enemyPath, GridLayer);
         ActiveEnemies.Add(enemy);
     }
 
@@ -334,5 +411,24 @@ public partial class Battlefield : Node2D
             EmitSignal(SignalName.EnemyKilled, enemy.Reward);
     }
 
-    public Vector2[] GetEnemyPath() => _enemyPath;
+    /// <summary>
+    /// 获取敌人路径（格子坐标）
+    /// </summary>
+    public Vector2I[] GetEnemyGridPath() => _enemyPath;
+
+    /// <summary>
+    /// 获取敌人路径（像素坐标，用于兼容旧逻辑）
+    /// </summary>
+    public Vector2[] GetEnemyPath()
+    {
+        if (_enemyPath == null) return null;
+        var pts = new Vector2[_enemyPath.Length];
+        for (int i = 0; i < _enemyPath.Length; i++)
+        {
+            var topLeft = GridLayer.MapToLocal(_enemyPath[i]);
+            pts[i] = topLeft + new Vector2(GameConst.Grid.DefaultCellSize / 2f,
+                                            GameConst.Grid.DefaultCellSize / 2f);
+        }
+        return pts;
+    }
 }

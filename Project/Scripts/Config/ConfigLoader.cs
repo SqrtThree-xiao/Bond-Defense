@@ -24,12 +24,13 @@ public partial class ConfigLoader : Node
     // ─────────────────────────────────────────────
     // 配置表字典：key = id
     // ─────────────────────────────────────────────
-    public Dictionary<int, HeroConfig>    Heroes   { get; private set; } = new();
+    public Dictionary<int, HeroConfig>    Heroes    { get; private set; } = new();
     public Dictionary<int, SynergyConfig> Synergies { get; private set; } = new();
-    public Dictionary<int, WaveConfig>    Waves    { get; private set; } = new();
-    public Dictionary<int, EnemyConfig>   Enemies  { get; private set; } = new();
-    public Dictionary<int, UIConfig>      UIs      { get; private set; } = new();
-    public ShopConfig                     Shop     { get; private set; } = new();
+    public Dictionary<int, WaveConfig>    Waves     { get; private set; } = new();
+    public Dictionary<int, EnemyConfig>   Enemies   { get; private set; } = new();
+    public Dictionary<int, UIConfig>      UIs       { get; private set; } = new();
+    public Dictionary<int, LevelConfig>   Levels    { get; private set; } = new();
+    public ShopConfig                     Shop      { get; private set; } = new();
 
     public override void _Ready()
     {
@@ -73,6 +74,23 @@ public partial class ConfigLoader : Node
         return UIs.TryGetValue(id, out var v) ? v : null;
     }
 
+    public LevelConfig GetLevel(int id)
+    {
+        return Levels.TryGetValue(id, out var v) ? v : null;
+    }
+
+    public LevelConfig GetLevelByIndex(int index)
+    {
+        if (index < 0) return null;
+        int i = 0;
+        foreach (var kv in Levels)
+        {
+            if (i == index) return kv.Value;
+            i++;
+        }
+        return null;
+    }
+
     // ─────────────────────────────────────────────
     // 加载入口
     // ─────────────────────────────────────────────
@@ -89,7 +107,9 @@ public partial class ConfigLoader : Node
         if (shopDict.TryGetValue(1, out var shop))
             Shop = shop;
 
-        GD.Print($"[ConfigLoader] Loaded: {Heroes.Count} heroes, {Waves.Count} waves, {Synergies.Count} synergies, {Enemies.Count} enemies, {UIs.Count} uis");
+        Levels = LoadTable<LevelConfig>("res://Resources/Config/level/level.json", ParseLevel);
+
+        GD.Print($"[ConfigLoader] Loaded: {Heroes.Count} heroes, {Waves.Count} waves, {Synergies.Count} synergies, {Enemies.Count} enemies, {UIs.Count} uis, {Levels.Count} levels");
     }
 
     // ─────────────────────────────────────────────
@@ -228,5 +248,42 @@ public partial class ConfigLoader : Node
             UILayer      = row.ContainsKey("ui_layer") ? (int)row["ui_layer"].AsInt64() : 0,
             Description  = row.ContainsKey("description") ? row["description"].AsString() : "",
         };
+    }
+
+    private LevelConfig ParseLevel(Godot.Collections.Dictionary row)
+    {
+        var cfg = new LevelConfig
+        {
+            Id   = (int)row["id"].AsInt64(),
+            Name = row["name"].AsString(),
+        };
+
+        // spawn_points: array_str，JSON 导出为 ["-1,2|-1,3"]
+        // 每个元素是 "col,row" 格式，用 | 分隔
+        if (row.ContainsKey("spawn_points"))
+        {
+            var arr = row["spawn_points"].AsGodotArray();
+            foreach (var item in arr)
+            {
+                string cell = item.AsString().Trim();
+                var parts = cell.Split(',');
+                if (parts.Length >= 2 && int.TryParse(parts[0], out int x) && int.TryParse(parts[1], out int y))
+                    cfg.SpawnPoints.Add(new Vector2I(x, y));
+            }
+        }
+
+        // wave_ids: array_str，JSON 导出为 ["1|2|3"]
+        if (row.ContainsKey("wave_ids"))
+        {
+            var arr = row["wave_ids"].AsGodotArray();
+            foreach (var item in arr)
+            {
+                string cell = item.AsString().Trim();
+                if (int.TryParse(cell, out int v))
+                    cfg.WaveIds.Add(v);
+            }
+        }
+
+        return cfg;
     }
 }

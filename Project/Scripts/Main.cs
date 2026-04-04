@@ -58,10 +58,23 @@ public partial class Main : Node2D
 		_synergyManager.Name = "SynergyManager";
 		AddChild(_synergyManager);
 
-		// 2. Battlefield（初始位置，UpdateLayout 会更新）
-		_battlefield = new Battlefield();
+		// 2. Battlefield（从 GameScene.tscn 预制体实例化）
+		var gameScenePacked = GD.Load<PackedScene>("res://Scenes/GameScene.tscn");
+		var gameSceneNode = gameScenePacked.Instantiate();
+		_battlefield = gameSceneNode as Battlefield;
+		if (_battlefield == null)
+		{
+			// 降级：gameSceneNode 可能是 Node2D，需手动找子节点
+			_battlefield = gameSceneNode.GetNodeOrNull<Battlefield>(".");
+			if (_battlefield == null)
+			{
+				GD.PrintErr("[Main] Failed to load Battlefield from GameScene.tscn, creating manually");
+				_battlefield = new Battlefield();
+				_battlefield.Name = "Battlefield";
+			}
+		}
 		_battlefield.Name = "Battlefield";
-		AddChild(_battlefield);
+		AddChild(gameSceneNode);
 
 		// 3. GameManager（依赖 Battlefield 和 SynergyManager）
 		_gameManager = new GameManager();

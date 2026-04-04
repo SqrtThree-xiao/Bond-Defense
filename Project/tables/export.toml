@@ -6,3 +6,8 @@ custom_generator = "JSON2.0"
 input = "data"
 output = "dist"
 project_root = "../"
+
+[[tables]]
+name = "level"
+path = "level"
+

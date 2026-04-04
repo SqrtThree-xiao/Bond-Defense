@@ -12,6 +12,7 @@ static func loader(path:String):
 
 var enemy = loader('res://tables/dist/enemy/enemy.json')
 var hero = loader('res://tables/dist/hero/hero.json')
+var level = loader('res://tables/dist/level/level.json')
 var shop = loader('res://tables/dist/shop/shop.json')
 var synergy = loader('res://tables/dist/synergy/synergy.json')
 var ui = loader('res://tables/dist/ui/ui.json')

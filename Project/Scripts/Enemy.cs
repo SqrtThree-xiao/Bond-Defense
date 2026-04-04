@@ -28,12 +28,33 @@ public partial class Enemy : Node2D
         BuildVisual();
     }
 
+    /// <summary>
+    /// 设置像素坐标路径（旧接口，兼容保留）
+    /// </summary>
     public void SetPath(Vector2[] path)
     {
         _path = path;
         _pathIndex = 0;
         if (_path != null && _path.Length > 0)
             GlobalPosition = _path[0];
+    }
+
+    /// <summary>
+    /// 设置格子坐标路径（新接口，格子坐标 → 世界坐标 → 内部像素路径）
+    /// </summary>
+    public void SetGridPath(Vector2I[] gridPath, TileMapLayer tileMap)
+    {
+        if (gridPath == null || gridPath.Length == 0) return;
+
+        // 格子坐标 → 世界坐标（格子中心点）
+        var worldPath = new Vector2[gridPath.Length];
+        float cs = GameConst.Grid.DefaultCellSize;
+        for (int i = 0; i < gridPath.Length; i++)
+        {
+            var topLeft = tileMap.MapToLocal(gridPath[i]);
+            worldPath[i] = topLeft + new Vector2(cs / 2f, cs / 2f);
+        }
+        SetPath(worldPath);
     }
 
     private void BuildVisual()

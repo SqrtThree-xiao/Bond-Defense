@@ -89,3 +89,16 @@ public class UIConfig
     /// <summary>界面说明（仅供策划参考）</summary>
     public string Description   { get; set; } = "";
 }
+
+/// <summary>
+/// 关卡配置数据（对应 tables/data/level.xlsx）
+/// </summary>
+public class LevelConfig
+{
+    public int   Id           { get; set; }
+    public string Name         { get; set; } = "";
+    /// <summary>怪物出生点（格子坐标列表，如 [[-1,2],[-1,3]]）</summary>
+    public List<Vector2I> SpawnPoints { get; set; } = new();
+    /// <summary>引用的波次 ID 序列（对应 wave.xlsx 的 id）</summary>
+    public List<int> WaveIds { get; set; } = new();
+}
