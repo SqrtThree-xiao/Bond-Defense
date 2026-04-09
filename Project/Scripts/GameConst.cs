@@ -216,7 +216,24 @@ public static class GameConst
         /// <summary>待部署区标题行高度</summary>
         public const float BenchTitleHeight = 20f;
 
-    /// <summary>待部署区英雄模型缩放比例</summary>
-    public const float BenchHeroScale = 0.75f;
+        /// <summary>待部署区英雄模型缩放比例</summary>
+        public const float BenchHeroScale = 0.75f;
+
+        // ── 合并动画 ──
+
+        /// <summary>被消耗英雄飞向目标英雄的总时长（秒）</summary>
+        public const float MergeFlyDuration = 0.35f;
+
+        /// <summary>飞入目标后缩放消失的时长（秒）</summary>
+        public const float MergeShrinkDuration = 0.15f;
+
+        /// <summary>升星后目标英雄弹跳放大再回弹的时长（秒）</summary>
+        public const float MergeBounceDuration = 0.4f;
+
+        /// <summary>弹跳放大的峰值倍率</summary>
+        public const float MergeBounceScale = 1.5f;
+
+        /// <summary>合成粒子闪光颜色（金色）</summary>
+        public static readonly Color MergeGlowColor = new Color(1f, 0.85f, 0.2f, 1f);
     }
 }

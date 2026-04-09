@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// 游戏主管理器 - 控制波次、准备/战斗状态切换、金币生命
@@ -237,9 +238,7 @@ public partial class GameManager : Node
 
     public Hero CreateHeroInstance(HeroData data)
     {
-        var hero = new Hero();
-        hero.Data = data;
-        hero.Star = 1;
+        var hero = Hero.Create(data, 1);
         // 加入存储节点以触发 _Ready（初始化 BuffComponent 等）
         if (_heroStorage == null)
         {
@@ -323,6 +322,13 @@ public partial class GameManager : Node
 
     // ─────────────────────── 升星合成 ───────────────────────
 
+    /// <summary>合成动画置顶层（挂在 SceneTree.Root 上，ZIndex 置顶）</summary>
+    private Node2D _mergeAnimLayer;
+
+    /// <summary>正在进行的合成组（防止重复触发）</summary>
+    private HashSet<string> _mergingGroups = new();
+
+    /// <summary>检查是否可自动合并（购买/放置后自动调用）</summary>
     private void CheckMerge()
     {
         var allHeroes = new List<Hero>(_bench);
@@ -339,44 +345,232 @@ public partial class GameManager : Node
 
         foreach (var (key, group) in groups)
         {
-            if (group.Count >= 3 && group[0].Star < 3)
+            if (group.Count >= GameConst.Game.MergeRequireCount && group[0].Star < GameConst.Game.MaxStar)
             {
-                EmitSignal(SignalName.MergeAvailable, group[0].Data.HeroName);
+                // 自动执行合成（防重入）
+                if (!_mergingGroups.Contains(key))
+                {
+                    _mergingGroups.Add(key);
+                    TryMerge(group[0].Data.HeroName, group[0].Star);
+                    return; // 每次只处理一组，避免并发问题
+                }
             }
         }
     }
 
+    /// <summary>
+    /// 执行升星合成：3个同名同星级英雄 → 1个高星级英雄。
+    /// 含完整补间动画：被消耗的英雄飞向目标并消失，目标升星弹跳放大。
+    /// </summary>
     public bool TryMerge(string heroName, int star)
     {
         var allHeroes = new List<Hero>(_bench);
         allHeroes.AddRange(_battlefield.GetAllHeroes());
 
         var matching = allHeroes.FindAll(h => h.Data.HeroName == heroName && h.Star == star);
-        if (matching.Count < 3) return false;
+        if (matching.Count < GameConst.Game.MergeRequireCount) return false;
 
-        // 消耗3个英雄
-        for (int i = 0; i < 3; i++)
+        // 过滤掉已在合成动画中的英雄
+        matching.RemoveAll(h => !IsInstanceValid(h) || h.IsMerging);
+        if (matching.Count < GameConst.Game.MergeRequireCount) return false;
+
+        // ── 选择目标英雄（保留的那个） ──
+        // 优先级：战场上的英雄 > 待部署区第一个
+        Hero targetHero = null;
+        int targetIndex = -1;
+        for (int i = 0; i < matching.Count; i++)
         {
-            var h = matching[i];
+            var cell = _battlefield.FindHeroCell(matching[i]);
+            if (cell != null && _battlefield.GetAllHeroes().Contains(matching[i]))
+            {
+                targetHero = matching[i];
+                targetIndex = i;
+                break;
+            }
+        }
+        if (targetHero == null)
+        {
+            targetHero = matching[0];
+            targetIndex = 0;
+        }
+
+        // 收集被消耗的2个英雄（排除目标）
+        var consumedHeroes = new List<Hero>();
+        for (int i = 0; i < matching.Count && consumedHeroes.Count < 2; i++)
+        {
+            if (i != targetIndex) consumedHeroes.Add(matching[i]);
+        }
+        if (consumedHeroes.Count < 2)
+        {
+            // 兜底：如果匹配刚好3个但索引有问题，取后两个
+            for (int i = matching.Count - 1; i >= 0 && consumedHeroes.Count < 2; i--)
+            {
+                if (matching[i] != targetHero) consumedHeroes.Add(matching[i]);
+            }
+        }
+
+        // ── 从数据源中移除所有3个英雄（先移数据再播放动画） ──
+        foreach (var h in matching)
+        {
             _bench.Remove(h);
-            // 若在战场，移出战场格子（简单处理：直接free）
-            h.QueueFree();
+            // 如果在战场上，清空格子
+            var cell = _battlefield.FindHeroCell(h);
+            if (cell != null) _battlefield.RemoveHeroFromCell(cell.Value.X, cell.Value.Y);
         }
 
-        // 生成升星英雄
-        var newHero = CreateHeroInstance(matching[0].Data);
-        newHero.Star = star + 1;
-        newHero.RefreshVisual();
+        // ── 准备合成动画层 ──
+        _EnsureMergeAnimLayer();
 
-        if (_bench.Count < 8)
+        Vector2 targetGlobalPos = targetHero.GlobalPosition;
+
+        // 将目标英雄也提升到动画层（确保动画可见且不被其他节点干扰）
+        ReparentToMergeLayer(targetHero);
+
+        // ── 对被消耗的2个英雄播放飞入动画 ──
+        int finishedCount = 0;
+        int totalConsumed = consumedHeroes.Count;
+
+        foreach (var consumed in consumedHeroes)
         {
-            _bench.Add(newHero);
+            if (!IsInstanceValid(consumed)) { finishedCount++; continue; }
+
+            // 提升到动画层
+            ReparentToMergeLayer(consumed);
+
+            // 绑定动画完成回调
+            consumed.MergeConsumedFinished += OnConsumedFinished;
+            consumed.PlayMergeConsumeAnimation(targetGlobalPos);
         }
 
+        // 如果没有消耗者动画（理论上不可能），直接结束
+        if (totalConsumed == 0)
+        {
+            FinishMerge(targetHero, heroName, star);
+            return true;
+        }
+
+        // ── 延迟等待消耗动画完成后执行升星 ──
+        // 用一个计时器或直接在回调中计数
+        // 这里采用回调计数方式：每个消耗者动画结束后 +1，达到总数时执行最终升星
+
+        void OnConsumedFinished(Hero consumed)
+        {
+            consumed.MergeConsumedFinished -= OnConsumedFinished;
+            finishedCount++;
+
+            if (finishedCount >= totalConsumed)
+            {
+                // 所有消耗者动画完成 → 执行最终升星
+                CallDeferred(nameof(FinishMerge), targetHero, heroName, star);
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 合成动画最终阶段：销毁消耗英雄、升级目标、播放弹跳动画、放回待部署区
+    /// </summary>
+    private void FinishMerge(Hero targetHero, string heroName, int star)
+    {
+        if (!IsInstanceValid(targetHero))
+        {
+            // 目标已失效（极端情况），重新创建
+            var newData = _heroPool.FirstOrDefault(h => h.HeroName == heroName);
+            if (newData != null)
+            {
+                targetHero = CreateHeroInstance(newData);
+                targetHero.Star = star + 1;
+            }
+            else
+            {
+                _ClearMergingGroup(heroName, star);
+                return;
+            }
+        }
+
+        // 销毁所有仍在动画层中的消耗英雄残留
+        if (_mergeAnimLayer != null)
+        {
+            var children = _mergeAnimLayer.GetChildren();
+            foreach (Node child in children)
+            {
+                if (child is Hero h && h != targetHero && h.IsMerging)
+                {
+                    h.QueueFree();
+                }
+            }
+        }
+
+        // 升级目标英雄星级
+        int oldStar = targetHero.Star;
+        targetHero.Star = star + 1;
+        targetHero.RefreshVisual();
+        targetHero.PlayMergeStarUpAnimation();
+
+        // 将目标英雄从动画层移回 HeroStorage（作为待部署区英雄）
+        if (_mergeAnimLayer != null && targetHero.GetParent() == _mergeAnimLayer)
+        {
+            _mergeAnimLayer.RemoveChild(targetHero);
+        }
+        if (_heroStorage != null)
+            _heroStorage.AddChild(targetHero);
+
+        // 重置缩放（动画可能改变了 scale）
+        targetHero.Scale = VectorOne;
+
+        // 放回待部署区
+        if (_bench.Count < GameConst.Game.BenchCapacity)
+        {
+            _bench.Add(targetHero);
+        }
+
+        // 清除合成锁
+        _ClearMergingGroup(heroName, oldStar);
+
+        // 触发UI更新
         EmitSignal(SignalName.BenchChanged);
         UpdateSynergies();
         EmitSignal(SignalName.ShowMessage, $"{heroName} 升级为 {star + 1}星！");
-        return true;
+    }
+
+    private static readonly Vector2 VectorOne = Vector2.One;
+
+    /// <summary>确保合成动画层存在</summary>
+    private void _EnsureMergeAnimLayer()
+    {
+        if (_mergeAnimLayer != null && IsInstanceValid(_mergeAnimLayer)) return;
+
+        _mergeAnimLayer = new Node2D();
+        _mergeAnimLayer.Name = "MergeAnimLayer";
+        _mergeAnimLayer.ZIndex = 150; // 高于拖拽层(100)，确保最顶层显示
+        GetTree().Root.AddChild(_mergeAnimLayer);
+    }
+
+    /// <summary>将英雄 re-parent 到合成动画层</summary>
+    private void ReparentToMergeLayer(Hero hero)
+    {
+        if (!IsInstanceValid(hero) || _mergeAnimLayer == null) return;
+        if (hero.GetParent() == _mergeAnimLayer) return; // 已在动画层
+
+        // 记录当前全局位置
+        Vector2 globalPos = hero.GlobalPosition;
+        Vector2 currentScale = hero.Scale;
+
+        if (hero.GetParent() != null)
+            hero.GetParent().RemoveChild(hero);
+        _mergeAnimLayer.AddChild(hero);
+
+        // 保持位置和缩放不变
+        hero.GlobalPosition = globalPos;
+        hero.Scale = currentScale;
+    }
+
+    /// <summary>清除指定组的合成锁定</summary>
+    private void _ClearMergingGroup(string heroName, int star)
+    {
+        string key = $"{heroName}_{star}";
+        _mergingGroups.Remove(key);
     }
 
     // ─────────────────────── 波次控制 ───────────────────────

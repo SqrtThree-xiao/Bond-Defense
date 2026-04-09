@@ -222,6 +222,9 @@ public partial class BenchUI : Node2D
 		);
 		hero.Visible = true;
 
+		// 刷新视觉以确保星级/颜色等数据正确显示（reparent 后可能需要）
+		hero.RefreshVisual();
+
 		// 英雄边框颜色（强化显示）
 		slot.SetHeroAccent(true, hero.Data.HeroColor);
 	}
