@@ -216,7 +216,7 @@ public static class GameConst
         /// <summary>待部署区标题行高度</summary>
         public const float BenchTitleHeight = 20f;
 
-        /// <summary>待部署区英雄模型缩放比例</summary>
-        public const float BenchHeroScale = 0.5f;
+    /// <summary>待部署区英雄模型缩放比例</summary>
+    public const float BenchHeroScale = 0.75f;
     }
 }

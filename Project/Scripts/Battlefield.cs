@@ -198,7 +198,7 @@ public partial class Battlefield : Node2D
             {
                 if (_grid[c, r] != null && IsInstanceValid(_grid[c, r]))
                 {
-                    _grid[c, r].GlobalPosition = GridToWorld(c, r);
+                    _grid[c, r].GlobalPosition = GridToWorld(c, r) + new Vector2(0f, HeroPlacementYOffset);
                 }
             }
         }
@@ -266,6 +266,9 @@ public partial class Battlefield : Node2D
     //  英雄放置
     // ═══════════════════════════════════════════════════════
 
+    /// <summary>英雄放置到格子时的垂直微调（像素），使视觉居中</summary>
+    private const float HeroPlacementYOffset = 6f;
+
     public bool PlaceHero(Hero hero, int col, int row)
     {
         if (!IsCellEmpty(col, row)) return false;
@@ -273,7 +276,13 @@ public partial class Battlefield : Node2D
         _grid[col, row] = hero;
         hero.GetParent()?.RemoveChild(hero);
         AddChild(hero);
-        hero.GlobalPosition = GridToWorld(col, row);
+
+        // 重置缩放（可能从待部署区继承了 BenchHeroScale）
+        hero.Scale = Vector2.One;
+        hero.Position = Vector2.Zero;
+
+        var cellCenter = GridToWorld(col, row);
+        hero.GlobalPosition = cellCenter + new Vector2(0f, HeroPlacementYOffset);
 
         // 更新格子 tile 为 occupied
         GridLayer.SetCell(new Vector2I(col, row), TILE_OCCUPIED, new Vector2I(0, 0));
@@ -308,8 +317,8 @@ public partial class Battlefield : Node2D
         var h2 = _grid[col2, row2];
         _grid[col1, row1] = h2;
         _grid[col2, row2] = h1;
-        if (h1 != null) h1.GlobalPosition = GridToWorld(col2, row2);
-        if (h2 != null) h2.GlobalPosition = GridToWorld(col1, row1);
+        if (h1 != null) h1.GlobalPosition = GridToWorld(col2, row2) + new Vector2(0f, HeroPlacementYOffset);
+        if (h2 != null) h2.GlobalPosition = GridToWorld(col1, row1) + new Vector2(0f, HeroPlacementYOffset);
 
         // 更新 tile 状态
         GridLayer.SetCell(new Vector2I(col1, row1), h2 != null ? TILE_OCCUPIED : TILE_EMPTY, new Vector2I(0, 0));

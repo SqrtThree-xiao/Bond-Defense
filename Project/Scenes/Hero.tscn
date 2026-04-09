@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://c10m7833uxyj"]
+
+[ext_resource type="Script" uid="uid://c3kvv6mcw7kad" path="res://Scripts/Hero.cs" id="1_hero"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_click"]
+radius = 24.0
+
+[node name="Hero" type="Node2D" unique_id=1377838119]
+script = ExtResource("1_hero")
+
+[node name="Body" type="Polygon2D" parent="." unique_id=871287426]
+color = Color(0.4, 0.6, 1, 1)
+polygon = PackedVector2Array(0, -22, 19, -14, 20, 13, 0, 22, -20, 11, -20, -12)
+
+[node name="Border" type="Line2D" parent="." unique_id=1159417759]
+points = PackedVector2Array(0, -22, 20, -15, 20, 13, 0, 22, -21, 12, -22, -12, 0, -22)
+width = 2.0
+
+[node name="NameLabel" type="Label" parent="." unique_id=206082262]
+offset_left = -25.0
+offset_top = 26.0
+offset_right = 25.0
+offset_bottom = 42.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "英雄"
+horizontal_alignment = 1
+
+[node name="StarLabel" type="Label" parent="." unique_id=272264717]
+offset_left = -20.0
+offset_top = -42.0
+offset_right = 20.0
+offset_bottom = -25.0
+theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
+theme_override_font_sizes/font_size = 12
+text = "★"
+horizontal_alignment = 1
+
+[node name="RangeCircle" type="Control" parent="." unique_id=930635063]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+
+[node name="ClickArea" type="Area2D" parent="." unique_id=1899148831]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClickArea" unique_id=518617788]
+shape = SubResource("CircleShape2D_click")
+
+[node name="BuffComponent" type="Node" parent="." unique_id=1353701175]

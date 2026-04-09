@@ -56,7 +56,11 @@ public partial class HeroCard : Button
             _iconRect.Color = data.HeroColor;
 
         if (_rarityLabel != null)
-            _rarityLabel.Text = new string('★', data.Rarity);
+        {
+            _rarityLabel.Text = data.Rarity switch { 2 => "精英", 3 => "传奇", _ => "普通" };
+            _rarityLabel.AddThemeColorOverride("font_color",
+                data.Rarity switch { 2 => new Color(0.4f, 0.7f, 1f), 3 => new Color(1f, 0.6f, 0.2f), _ => new Color(0.7f, 0.7f, 0.7f) });
+        }
 
         if (_nameLabel != null)
             _nameLabel.Text = data.HeroName;
